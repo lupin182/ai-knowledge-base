@@ -5,6 +5,7 @@
   <title>AI 知识库</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="docs/vendor/css/theme-simple.css">
+  <link rel="stylesheet" href="docs/css/kb-manager.css">
   <style>
     :root {
       --base-font-size: 15px;
@@ -282,9 +283,20 @@
   <script src="docs/js/ai-sidebar-mount.js?v=3"></script>
   <script>bootstrapAiSidebar({ initialQuotaText: "Loading quota..." });</script>
   <div class="top-right-btns">
+    <button id="kb-manager-btn" class="top-btn kb-btn" title="Manage knowledge bases">KB</button>
     <button id="edit-btn" class="top-btn edit-btn" title="Edit source (Ctrl+Shift+E)">Edit</button>
     <button id="ai-open-btn" class="top-btn ai-btn" title="Open AI Assistant (Ctrl+Shift+A)">AI</button>
   </div>
+
+  <!-- 首次启动检测：未配置 backend 时顶部弹横幅引导去设置页 -->
+  <div id="first-run-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#fff3cd;color:#856404;padding:10px 20px;border-bottom:1px solid #ffeaa7;text-align:center;font-size:14px;">
+    AI 后端尚未配置。<a href="docs/tools/settings.html" style="color:#3F51B5;font-weight:600;">前往设置 →</a>
+  </div>
+  <script>
+    fetch('/api/settings/check').then(function(r){return r.json();}).then(function(d){
+      if (!d.is_configured) document.getElementById('first-run-banner').style.display='block';
+    }).catch(function(){});
+  </script>
 
   <!-- Source Editor Panel -->
   <div id="editor-panel" class="editor-panel">
@@ -318,5 +330,6 @@
   <link rel="stylesheet" href="docs/vendor/codemirror/dialog.min.css">
 
   <script src="docs/js/editor.js?v=2"></script>
+  <script src="docs/js/kb-manager.js?v=1"></script>
 </body>
 </html>

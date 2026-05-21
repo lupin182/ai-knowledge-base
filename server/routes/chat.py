@@ -1,35 +1,42 @@
+"""SSE 流式对话路由。把请求转给当前激活的 Backend。"""
+
 import json
 import logging
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+
+from server.backends import get_active_backend
 from server.models import ChatRequest
-from server.services import file_service, claude_service
+from server.services import kb_service
 
 router = APIRouter()
 
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
-    """流式对话，返回 SSE。支持文本回复和工具调用事件。"""
     try:
-        resolved = file_service.resolve_docsify_path(request.page_path)
-        page_content = resolved.read_text(encoding="utf-8")
+        resolved = kb_service.resolve_docsify_page(request.page_path)
+        page_content = resolved.abs_path.read_text(encoding="utf-8")
     except FileNotFoundError:
         page_content = ""
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
+    images = [{"base64": img.base64, "media_type": img.media_type} for img in request.images]
+    backend = get_active_backend()
 
     def event_generator():
         try:
-            for event in claude_service.stream_chat(
+            for event in backend.stream_chat(
+                page_path=request.page_path,
                 page_content=page_content,
                 selected_text=request.selected_text,
                 messages=messages,
                 model=request.model,
                 thinking=request.thinking,
-                images=[{"base64": img.base64, "media_type": img.media_type} for img in request.images],
+                images=images,
                 session_id=request.session_id,
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
@@ -39,5 +46,3 @@ async def chat(request: ChatRequest):
             yield f"data: {json.dumps({'type': 'error', 'content': 'An internal error occurred.'})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-

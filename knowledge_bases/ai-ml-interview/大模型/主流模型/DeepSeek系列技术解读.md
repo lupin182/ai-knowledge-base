@@ -255,7 +255,7 @@ MTP 的额外预测头非常轻量（只有一个 Transformer 层），增加的
 
 **和 Meta 的 MTP 工作对比**：Meta 在 2024 年也发表了 MTP 相关论文，但 DeepSeek-V3 的 MTP 设计更轻量，且与 Speculative Decoding 的结合更紧密。
 
-### 3.4 $5.576M 训练成本的完整分析
+### 3.4 5.576M 训练成本的完整分析
 
 DeepSeek-V3 的训练成本分解，可以从以下几个维度理解：
 

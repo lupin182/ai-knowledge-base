@@ -15,7 +15,7 @@ class ChatRequest(BaseModel):
     page_path: str
     selected_text: str = ""
     messages: list[ChatMessage]
-    model: str = "claude-opus-4-6"
+    model: str = ""  # 空串 = 用 backend 的默认模型
     thinking: bool = False
     images: list[ImageData] = []
     session_id: str = ""  # 传入则复用 CLI 会话，无需重发历史

@@ -1,28 +1,26 @@
+"""项目级常量。
+
+运行时可变的设置（API key、所选 backend、模型列表、ACCESS_PASSWORD、Claude CLI 路径等）
+统一搬到 `server/services/settings_service.py` 持久化到 `server/.settings.json`，
+本文件只保留路径、字符上限等真常量。
+"""
+
 import os
-import shutil
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / ".env")
 
-# Claude CLI 路径
-_default_claude = shutil.which("claude")
-if not _default_claude:
-    # Windows npm global bin 的常见路径
-    _npm_path = Path(os.environ.get("APPDATA", "")) / "npm" / "claude.cmd"
-    if _npm_path.exists():
-        _default_claude = str(_npm_path)
-    else:
-        _default_claude = "claude"
-CLAUDE_CLI = os.getenv("CLAUDE_CLI", _default_claude)
-
-# 知识库根目录 (server/ 的父目录)
+# 仓库根目录 (server/ 的父目录) —— Docsify 前端静态资源根。
 DOCS_ROOT = Path(__file__).parent.parent.resolve()
 
-# 最大页面内容长度 (字符数，防止超出 context window)
-# 普通 .md 页面用 MAX_PAGE_CHARS；PDF 全文提取文件用 MAX_PDF_CHARS（通常更长）
-MAX_PAGE_CHARS = 50000
-MAX_PDF_CHARS = 200000
+# 多知识库根目录：每个子目录 = 一个独立 KB。
+KB_ROOT = DOCS_ROOT / "knowledge_bases"
 
-# 局域网访问密码 (为空则不启用认证)
-ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD", "")
+# 默认知识库 slug。当 URL 没有 /kb/<slug>/ 前缀时回退到这个 KB。
+DEFAULT_KB_SLUG = os.getenv("DEFAULT_KB_SLUG", "ai-ml-interview")
+
+# 单页 markdown 内容传给 LLM 的最大字符数，防止超出上下文窗口。
+MAX_PAGE_CHARS = 50000
+# PDF 全文抽取出来的页面通常更长，给它单独的更大阈值。
+MAX_PDF_CHARS = 200000

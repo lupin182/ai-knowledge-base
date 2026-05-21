@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 - AI 知识库</title>
+<link rel="stylesheet" href="../css/settings.css">
+</head>
+<body>
+<div class="settings-shell">
+  <header class="settings-header">
+    <a class="back-link" href="/">← 返回知识库</a>
+    <h1>设置</h1>
+    <div id="status-pill" class="status-pill"></div>
+  </header>
+
+  <section class="card">
+    <h2>AI 后端</h2>
+    <p class="hint">Claude CLI 需要本机安装 <code>@anthropic-ai/claude-code</code> 并 <code>claude</code> 登录；OpenAI 兼容 API 任何符合 Chat Completions 协议的服务都可（OpenAI、DeepSeek 等）。</p>
+    <div class="backend-choice">
+      <label><input type="radio" name="backend" value="claude_cli"> Claude CLI（用订阅，免 API key）</label>
+      <label><input type="radio" name="backend" value="openai_api"> OpenAI 兼容 API（填 key）</label>
+    </div>
+  </section>
+
+  <section class="card" id="claude-cli-card">
+    <h2>Claude CLI 设置</h2>
+    <div class="field">
+      <label>CLI 路径（留空 = 自动从 PATH 探测）</label>
+      <input type="text" id="claude-cli-path" placeholder="auto">
+      <div class="hint" id="claude-cli-detected"></div>
+    </div>
+    <div class="field">
+      <label>默认模型</label>
+      <select id="claude-default-model"></select>
+    </div>
+  </section>
+
+  <section class="card" id="openai-card">
+    <h2>OpenAI 兼容 API 设置</h2>
+    <div id="openai-profiles"></div>
+    <div class="action-row">
+      <button class="secondary" id="add-profile-btn">+ 添加模型</button>
+    </div>
+    <div class="field">
+      <label>默认模型</label>
+      <select id="openai-default-model"></select>
+    </div>
+    <div class="field">
+      <label><input type="checkbox" id="openai-enable-tools"> 启用工具调用（让 AI 能编辑知识库 .md）</label>
+    </div>
+    <div class="field">
+      <label><input type="checkbox" id="openai-allow-client-model"> 允许前端选择模型</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>访问密码</h2>
+    <p class="hint">局域网/公网部署时启用。留空 = 不启用密码。本机访问永远直接放行，不需要登录。</p>
+    <div class="field">
+      <label>密码（留空保留原密码不变；输入 <code>REMOVE</code> 清空）</label>
+      <input type="password" id="access-password" placeholder="如需修改在此输入新密码">
+      <div class="hint" id="access-password-state"></div>
+    </div>
+  </section>
+
+  <div class="footer-actions">
+    <button class="primary" id="save-btn">保存设置</button>
+    <span id="save-feedback" class="save-feedback"></span>
+  </div>
+</div>
+
+<script src="../js/settings.js"></script>
+</body>
+</html>

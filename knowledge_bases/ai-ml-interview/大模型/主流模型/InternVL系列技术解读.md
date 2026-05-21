@@ -56,7 +56,7 @@ InternVL 3.5 (2025.8)     → Cascade RL + 动态压缩，整体追平 GPT-5 ★
 
 **② InternViT-6B（自研大视觉编码器）**
 
-- ~6B 参数的 ViT，远超 CLIP ViT-L（~300M）
+- 约6B 参数的 ViT，远超 CLIP ViT-L（~300M）
 - 45 层 Transformer，3200 维特征，Patch Size 14×14
 - 通过 Pixel Shuffle（Pixel Unshuffle r=2）将 1024 tokens 零信息损失压缩到 256 tokens
 - 消融实验证明：视觉编码器 300M→6B（20×），MMMU 提升 5.6 分，OCRBench 提升 109 分

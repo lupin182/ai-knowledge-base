@@ -1,4 +1,7 @@
-"""统一安全中间件：路径防护 + 速率限制 + 密码认证，合并为单一中间件保证执行顺序。"""
+"""统一安全中间件：路径防护 + 速率限制 + 密码认证，合并为单一中间件保证执行顺序。
+
+ACCESS_PASSWORD 从 settings_service 读取（可以从前端设置页改并实时生效）。
+"""
 
 import hashlib
 import hmac
@@ -13,7 +16,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse, JSONResponse
 
-from server.config import ACCESS_PASSWORD
+from server.services import settings_service
 
 # ── Cookie 签名密钥（持久化，重启后 cookie 仍有效）──
 _SECRET_FILE = pathlib.Path(__file__).parent / ".auth_secret"
@@ -39,28 +42,29 @@ _SECRET = _load_or_create_secret()
 _LOCAL_IPS = frozenset({"127.0.0.1", "::1"})
 
 # ── 路径安全 ──
+# 直接 URL 访问以下前缀的资源会被拦截：
+# - server/ ：后端代码
+# - knowledge_bases/ ：必须走 /kb/<slug>/... 路由，禁止暴露真实磁盘前缀
+# - _trash/、_backup/、_cli_sandbox/ ：临时/废弃数据
+# - .git/, .github/, .claude/, .env, .venv/, .vscode/, .idea/, __pycache__/, .auth_secret
 _BLOCKED_PREFIXES = (
     "/server/", "/.claude/", "/.git/", "/.github/", "/.env",
-    "/_cli_sandbox/", "/_backup/", "/__pycache__/", "/.auth_secret",
+    "/knowledge_bases/", "/_trash/", "/_cli_sandbox/", "/_backup/",
+    "/__pycache__/", "/.auth_secret",
     "/.venv/", "/venv/", "/.vscode/", "/.idea/",
 )
 _DANGEROUS_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def _normalize_path(raw: str) -> str | None:
-    """全面规范化 URL 路径。返回小写路径，含危险内容返回 None。"""
     if _DANGEROUS_CHARS.search(raw):
         return None
-    # 双重 URL 解码（防 %252F 等双重编码）
     decoded = urllib.parse.unquote(urllib.parse.unquote(raw))
     if _DANGEROUS_CHARS.search(decoded):
         return None
-    # 反斜杠 → 正斜杠（Windows）
     decoded = decoded.replace("\\", "/")
-    # 折叠连续斜杠
     while "//" in decoded:
         decoded = decoded.replace("//", "/")
-    # 解析 . 和 ..
     parts = decoded.split("/")
     resolved: list[str] = []
     for p in parts:
@@ -70,24 +74,19 @@ def _normalize_path(raw: str) -> str | None:
             if resolved:
                 resolved.pop()
         else:
-            # NTFS 忽略尾部点和空格，必须去掉防绕过
             resolved.append(p.rstrip(". "))
     normalized = "/" + "/".join(resolved)
     return normalized.lower()
 
 
 def _is_path_blocked(path: str) -> bool:
-    """检查规范化后的路径是否被禁止。"""
     for prefix in _BLOCKED_PREFIXES:
         if path.startswith(prefix) or path == prefix.rstrip("/"):
             return True
-    # 阻止 .py/.pyc 文件
     if path.endswith(".py") or path.endswith(".pyc"):
         return True
-    # 阻止所有隐藏文件/目录（/. 开头的段）
     if "/." in path:
         return True
-    # 阻止 NTFS 8.3 短文件名（如 SERVER~1, ENV~1）
     if "~" in path:
         return True
     return False
@@ -95,22 +94,24 @@ def _is_path_blocked(path: str) -> bool:
 
 # ── Token 生成与验证（时序安全）──
 def _make_token(password: str) -> str:
-    """基于密码和密钥生成认证 token（完整 HMAC-SHA256）。"""
     return hmac.new(_SECRET.encode(), password.encode(), hashlib.sha256).hexdigest()
 
 
 def verify_token(token: str) -> bool:
-    """常量时间验证 token，防止时序攻击。"""
-    if not token or not ACCESS_PASSWORD:
+    if not token:
         return False
-    return hmac.compare_digest(token, _make_token(ACCESS_PASSWORD))
+    password = settings_service.access_password()
+    if not password:
+        return False
+    return hmac.compare_digest(token, _make_token(password))
 
 
-def verify_password(candidate: str) -> bool:
-    """常量时间验证密码，防止时序攻击。"""
-    if not candidate or not ACCESS_PASSWORD:
+def verify_password(candidate: str, expected: str | None = None) -> bool:
+    if expected is None:
+        expected = settings_service.access_password()
+    if not candidate or not expected:
         return False
-    return hmac.compare_digest(candidate, ACCESS_PASSWORD)
+    return hmac.compare_digest(candidate, expected)
 
 
 # ── 速率限制 ──
@@ -120,14 +121,12 @@ _MAX_TRACKED_IPS = 10000
 
 CHAT_RATE_WINDOW = 60
 CHAT_RATE_MAX = 30
-LOGIN_RATE_WINDOW = 300   # 5 分钟
-LOGIN_RATE_MAX = 5        # 最多 5 次
+LOGIN_RATE_WINDOW = 300
+LOGIN_RATE_MAX = 5
 
 
 def _check_rate(store: dict, ip: str, window: int, limit: int) -> bool:
-    """返回 True 表示被限制。"""
     now = time.time()
-    # 防内存泄漏
     if len(store) > _MAX_TRACKED_IPS:
         expired = [k for k, v in store.items() if not v or now - v[-1] > window]
         for k in expired:
@@ -141,9 +140,7 @@ def _check_rate(store: dict, ip: str, window: int, limit: int) -> bool:
     return False
 
 
-# ── 本地判断 ──
 def _is_local(request: Request) -> bool:
-    """只看直连 socket IP，绝不信任代理头。"""
     client = request.client
     if not client:
         return False
@@ -210,19 +207,20 @@ document.getElementById('f').onsubmit = function(e) {
 </html>"""
 
 
-# ── 统一安全中间件 ──
+# 未启用密码也允许访问的诊断/设置接口（让首次启动能进设置页）
+_OPEN_PATHS = frozenset({"/api/login", "/api/settings/check"})
+
+
 class SecurityMiddleware(BaseHTTPMiddleware):
     """合并路径防护 + 速率限制 + 认证，保证执行顺序。"""
 
     async def dispatch(self, request: Request, call_next):
-        # 1. 路径规范化与安全检查
         normalized = _normalize_path(request.url.path)
         if normalized is None:
             return JSONResponse({"error": "Bad request"}, status_code=400)
         if _is_path_blocked(normalized):
             return JSONResponse({"error": "Forbidden"}, status_code=403)
 
-        # 2. 速率限制
         client_ip = request.client.host if request.client else "unknown"
         if normalized == "/api/login":
             if _check_rate(_login_rate, client_ip, LOGIN_RATE_WINDOW, LOGIN_RATE_MAX):
@@ -238,19 +236,18 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     status_code=429,
                 )
 
-        # 3. 认证
-        if not ACCESS_PASSWORD:
+        password = settings_service.access_password()
+        if not password:
             return await call_next(request)
         if _is_local(request):
             return await call_next(request)
-        if normalized == "/api/login":
+        if normalized in _OPEN_PATHS:
             return await call_next(request)
 
         token = request.cookies.get("kb_auth", "")
         if verify_token(token):
             return await call_next(request)
 
-        # 未认证
         if normalized.startswith("/api/"):
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
         return HTMLResponse(LOGIN_PAGE)

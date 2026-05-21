@@ -9,9 +9,18 @@ venv/
 .env
 !server/.env.example
 
+# Runtime settings (contains API keys / passwords — never commit)
+.settings.json
+server/.settings.json
+knowledge_bases/*/.kb/cache/
+
 # Backup
 _backup/
 *.bak
+_trash
+
+# Accidental Windows env-var leak (don't touch — created by some external tool)
+%SystemDrive%/
 
 # CLI sandbox (auto-generated, now at parent dir)
 _cli_sandbox/

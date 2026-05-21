@@ -1,0 +1,213 @@
+.kb-manager-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 420px;
+  max-width: 100vw;
+  height: 100vh;
+  z-index: 180;
+  background: #fff;
+  border-left: 1px solid #d8dde6;
+  box-shadow: -2px 0 16px rgba(0, 0, 0, 0.12);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #2f343d;
+}
+
+.kb-manager-panel.open {
+  transform: translateX(0);
+}
+
+.kb-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e1e5ec;
+  background: #f7f8fa;
+  flex-shrink: 0;
+}
+
+.kb-manager-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.kb-manager-close {
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #5f6673;
+}
+
+.kb-manager-body {
+  padding: 14px 16px 18px;
+  overflow-y: auto;
+}
+
+.kb-section {
+  margin-bottom: 18px;
+}
+
+.kb-section h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #4a5260;
+}
+
+.kb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kb-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid #e1e5ec;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.kb-list-item.active {
+  border-color: #3f51b5;
+  background: #f4f6ff;
+}
+
+.kb-list-main {
+  min-width: 0;
+}
+
+.kb-list-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-list-meta {
+  font-size: 12px;
+  color: #7b8494;
+  margin-top: 2px;
+}
+
+.kb-manager-panel input,
+.kb-manager-panel select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ccd3df;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.kb-manager-panel input:focus,
+.kb-manager-panel select:focus {
+  border-color: #3f51b5;
+}
+
+.kb-action-row {
+  display: flex;
+  gap: 8px;
+}
+
+.kb-action-row button,
+.kb-list-item button,
+.kb-upload-btn {
+  border: none;
+  border-radius: 6px;
+  background: #3f51b5;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
+.kb-list-item button {
+  background: #455a64;
+}
+
+.kb-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.kb-action-row button.secondary,
+.kb-upload-btn.secondary {
+  background: #607d8b;
+}
+
+.kb-status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #667085;
+  white-space: pre-wrap;
+}
+
+.kb-status.error {
+  color: #c62828;
+}
+
+.kb-list-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.kb-list-actions button {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.kb-list-item button.danger {
+  background: #c62828;
+}
+
+.kb-settings-link {
+  display: block;
+  text-align: center;
+  padding: 10px;
+  background: #f0f2f5;
+  border: 1px solid #ccd3df;
+  border-radius: 6px;
+  color: #455a64;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.kb-settings-link:hover {
+  background: #e6e9ef;
+}
+
+.kb-btn {
+  background: #00695c;
+}
+
+.kb-btn:hover {
+  background: #00574c;
+}
+
+body.kb-manager-open .top-right-btns {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .kb-manager-panel {
+    width: 100vw;
+  }
+}

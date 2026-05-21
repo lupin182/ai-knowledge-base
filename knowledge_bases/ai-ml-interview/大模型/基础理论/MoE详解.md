@@ -706,14 +706,6 @@ Token x
 
 **DeepSeek-V3 的具体配置**：1 个共享专家 + 256 个路由专家（选 8 个），每个 token 实际激活 9 个专家 FFN。
 
-### 6.3 MLA (Multi-head Latent Attention)
-
-虽然严格来说不属于 MoE，但 DeepSeek-V2/V3 在注意力层也做了重要创新：
-
-- 将 KV Cache 压缩到低维潜空间，大幅减少推理时的显存占用
-- 使 DeepSeek-V3 在 671B 参数下仍能高效推理
-- 详见 [KV Cache 详解](../推理优化/KV_Cache详解.md) 中的 MLA 章节
-
 ---
 
 ## 七、MoE 的训练与推理
