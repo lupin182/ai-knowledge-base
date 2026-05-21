@@ -30,8 +30,171 @@
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       state.settings = await resp.json();
       renderAll();
+      loadKbs();
     } catch (err) {
       setPill("加载失败: " + err.message, "bad");
+    }
+  }
+
+  // ───── KB 管理 ─────
+  var kbCardsEl = $("kb-cards");
+
+  function renderKbs(items) {
+    kbCardsEl.innerHTML = "";
+    if (!items.length) {
+      kbCardsEl.innerHTML = '<div class="kb-empty">还没有知识库，下面创建一个 →</div>';
+      return;
+    }
+    items.forEach(function (kb) {
+      var card = document.createElement("div");
+      card.className = "kb-card";
+      card.innerHTML =
+        '<div class="kb-card-head">' +
+          '<div>' +
+            '<div class="kb-card-name"></div>' +
+            '<div class="kb-card-meta"></div>' +
+          '</div>' +
+          '<div class="kb-card-actions">' +
+            '<a class="btn-open" target="_blank">打开 ↗</a>' +
+            '<button class="secondary kb-rename">改名</button>' +
+            '<button class="danger kb-delete">删除</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="kb-card-upload">' +
+          '<label class="kb-upload-btn">' +
+            '<span>＋ 上传文件</span>' +
+            '<input type="file" multiple style="display:none">' +
+          '</label>' +
+          '<label class="kb-upload-btn secondary-btn">' +
+            '<span>＋ 上传文件夹</span>' +
+            '<input type="file" webkitdirectory multiple style="display:none">' +
+          '</label>' +
+          '<div class="kb-upload-status"></div>' +
+        '</div>';
+      card.querySelector(".kb-card-name").textContent = kb.name;
+      card.querySelector(".kb-card-meta").textContent =
+        kb.slug + " · " + kb.files + " 篇 · " + (kb.chars / 10000).toFixed(1) + " 万字";
+      card.querySelector(".btn-open").href = "/#/kb/" + encodeURIComponent(kb.slug) + "/";
+
+      card.querySelector(".kb-rename").addEventListener("click", function () {
+        var nv = prompt("新的知识库名称：", kb.name);
+        if (nv && nv.trim() && nv.trim() !== kb.name) renameKb(kb.slug, nv.trim());
+      });
+      card.querySelector(".kb-delete").addEventListener("click", function () {
+        if (confirm("把「" + kb.name + "」整个目录搬到 _trash/？\n(_trash/ 在 .gitignore 内，本地保留，不会上推。)")) {
+          deleteKb(kb.slug);
+        }
+      });
+
+      var inputs = card.querySelectorAll("input[type=file]");
+      var statusEl = card.querySelector(".kb-upload-status");
+      inputs[0].addEventListener("change", function (e) {
+        uploadFiles(kb.slug, e.target.files, false, statusEl);
+        e.target.value = "";
+      });
+      inputs[1].addEventListener("change", function (e) {
+        uploadFiles(kb.slug, e.target.files, true, statusEl);
+        e.target.value = "";
+      });
+
+      kbCardsEl.appendChild(card);
+    });
+  }
+
+  async function loadKbs() {
+    try {
+      var resp = await fetch("/api/kbs");
+      var data = await resp.json();
+      renderKbs(data.items || []);
+    } catch (err) {
+      kbCardsEl.innerHTML = '<div class="kb-empty error">加载失败：' + err.message + "</div>";
+    }
+  }
+
+  async function renameKb(slug, newName) {
+    try {
+      var resp = await fetch("/api/kbs/" + encodeURIComponent(slug), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName }),
+      });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+      loadKbs();
+    } catch (err) {
+      alert("改名失败：" + err.message);
+    }
+  }
+
+  async function deleteKb(slug) {
+    try {
+      var resp = await fetch("/api/kbs/" + encodeURIComponent(slug), { method: "DELETE" });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+      loadKbs();
+    } catch (err) {
+      alert("删除失败：" + err.message);
+    }
+  }
+
+  async function uploadFiles(slug, fileList, fromFolder, statusEl) {
+    var files = Array.from(fileList || []);
+    if (!files.length) return;
+    var form = new FormData();
+    files.forEach(function (file) {
+      form.append("files", file, file.name);
+      form.append("relative_paths", fromFolder ? (file.webkitRelativePath || file.name) : file.name);
+    });
+    statusEl.textContent = "上传 " + files.length + " 个文件中…";
+    statusEl.classList.remove("error");
+    try {
+      var resp = await fetch("/api/kbs/" + encodeURIComponent(slug) + "/upload", {
+        method: "POST",
+        body: form,
+      });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+      var msg = "已导入 " + (data.saved || []).length + " 个";
+      if (data.errors && data.errors.length) {
+        msg += "，失败 " + data.errors.length + " 个：" +
+          data.errors.slice(0, 3).map(function (e) { return e.path + " (" + e.error + ")"; }).join("; ");
+        statusEl.classList.add("error");
+      }
+      statusEl.textContent = msg;
+      loadKbs();
+    } catch (err) {
+      statusEl.textContent = "上传失败：" + err.message;
+      statusEl.classList.add("error");
+    }
+  }
+
+  async function createKb() {
+    var name = $("kb-new-name").value.trim();
+    var slug = $("kb-new-slug").value.trim();
+    var fb = $("kb-create-feedback");
+    if (!name) {
+      fb.textContent = "请输入名称";
+      fb.classList.add("error");
+      return;
+    }
+    fb.textContent = "创建中…";
+    fb.classList.remove("error", "ok");
+    try {
+      var resp = await fetch("/api/kbs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, slug: slug || null }),
+      });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+      $("kb-new-name").value = "";
+      $("kb-new-slug").value = "";
+      fb.textContent = "已创建：" + data.name;
+      fb.classList.add("ok");
+      loadKbs();
+    } catch (err) {
+      fb.textContent = "失败：" + err.message;
+      fb.classList.add("error");
     }
   }
 
@@ -216,6 +379,8 @@
   });
 
   $("save-btn").addEventListener("click", save);
+  var createBtn = $("kb-create-btn");
+  if (createBtn) createBtn.addEventListener("click", createKb);
 
   loadSettings();
 })();

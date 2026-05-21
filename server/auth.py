@@ -1,8 +1,11 @@
 """统一安全中间件：路径防护 + 速率限制 + 密码认证，合并为单一中间件保证执行顺序。
 
-ACCESS_PASSWORD 从 settings_service 读取（可以从前端设置页改并实时生效）。
+settings.json 里的 `access_password` 字段存的是 scrypt 哈希（格式
+`scrypt$N$r$p$salt_b64$hash_b64`），不是明文。第一次启动若发现是裸明文，
+settings_service.write() 会在落盘前自动 rehash 升级。
 """
 
+import base64
 import hashlib
 import hmac
 import os
@@ -27,7 +30,7 @@ def _load_or_create_secret() -> str:
         secret = _SECRET_FILE.read_text().strip()
         if len(secret) >= 32:
             return secret
-    secret = secrets.token_hex(32)  # 256-bit
+    secret = secrets.token_hex(32)
     _SECRET_FILE.write_text(secret)
     try:
         os.chmod(str(_SECRET_FILE), 0o600)
@@ -38,15 +41,9 @@ def _load_or_create_secret() -> str:
 
 _SECRET = _load_or_create_secret()
 
-# 只信任直连 socket IP，绝不信任 X-Forwarded-For
 _LOCAL_IPS = frozenset({"127.0.0.1", "::1"})
 
 # ── 路径安全 ──
-# 直接 URL 访问以下前缀的资源会被拦截：
-# - server/ ：后端代码
-# - knowledge_bases/ ：必须走 /kb/<slug>/... 路由，禁止暴露真实磁盘前缀
-# - _trash/、_backup/、_cli_sandbox/ ：临时/废弃数据
-# - .git/, .github/, .claude/, .env, .venv/, .vscode/, .idea/, __pycache__/, .auth_secret
 _BLOCKED_PREFIXES = (
     "/server/", "/.claude/", "/.git/", "/.github/", "/.env",
     "/knowledge_bases/", "/_trash/", "/_cli_sandbox/", "/_backup/",
@@ -92,26 +89,84 @@ def _is_path_blocked(path: str) -> bool:
     return False
 
 
+# ── 密码哈希（scrypt，stdlib，无新依赖）──
+# 存储格式: scrypt$<n>$<r>$<p>$<salt_b64>$<hash_b64>
+_SCRYPT_N = 1 << 15        # 32768
+_SCRYPT_R = 8
+_SCRYPT_P = 1
+_SCRYPT_DKLEN = 32
+_SCRYPT_SALT_BYTES = 16
+# OpenSSL 默认 maxmem=32 MB，n=2^15 时 128*r*n ≈ 32 MB 刚好超出，必须显式抬高。
+_SCRYPT_MAXMEM = 128 * 1024 * 1024  # 128 MB
+
+
+def hash_password(password: str) -> str:
+    """生成 scrypt 哈希字符串。"""
+    salt = secrets.token_bytes(_SCRYPT_SALT_BYTES)
+    derived = hashlib.scrypt(
+        password.encode("utf-8"),
+        salt=salt, n=_SCRYPT_N, r=_SCRYPT_R, p=_SCRYPT_P,
+        dklen=_SCRYPT_DKLEN, maxmem=_SCRYPT_MAXMEM,
+    )
+    return "scrypt${n}${r}${p}${salt}${hash}".format(
+        n=_SCRYPT_N, r=_SCRYPT_R, p=_SCRYPT_P,
+        salt=base64.b64encode(salt).decode("ascii"),
+        hash=base64.b64encode(derived).decode("ascii"),
+    )
+
+
+def is_hash(value: str) -> bool:
+    """判断字符串是否是已哈希过的格式（用于升级旧明文）。"""
+    return bool(value) and value.startswith("scrypt$") and value.count("$") == 5
+
+
+def _verify_hash(candidate: str, stored: str) -> bool:
+    """常量时间验证 scrypt 哈希。失败包括格式异常。"""
+    try:
+        algo, n, r, p, salt_b64, hash_b64 = stored.split("$")
+        if algo != "scrypt":
+            return False
+        salt = base64.b64decode(salt_b64)
+        expected = base64.b64decode(hash_b64)
+        derived = hashlib.scrypt(
+            candidate.encode("utf-8"),
+            salt=salt, n=int(n), r=int(r), p=int(p),
+            dklen=len(expected), maxmem=_SCRYPT_MAXMEM,
+        )
+        return hmac.compare_digest(derived, expected)
+    except (ValueError, TypeError, base64.binascii.Error):
+        return False
+
+
 # ── Token 生成与验证（时序安全）──
-def _make_token(password: str) -> str:
-    return hmac.new(_SECRET.encode(), password.encode(), hashlib.sha256).hexdigest()
+def _token_material() -> str:
+    """cookie 签名材料：哈希字符串本身。空 = 未启用密码。"""
+    return settings_service.access_password_hash()
+
+
+def _make_token(material: str | None = None) -> str:
+    material = material if material is not None else _token_material()
+    return hmac.new(_SECRET.encode(), material.encode(), hashlib.sha256).hexdigest()
 
 
 def verify_token(token: str) -> bool:
-    if not token:
+    material = _token_material()
+    if not token or not material:
         return False
-    password = settings_service.access_password()
-    if not password:
-        return False
-    return hmac.compare_digest(token, _make_token(password))
+    return hmac.compare_digest(token, _make_token(material))
 
 
-def verify_password(candidate: str, expected: str | None = None) -> bool:
-    if expected is None:
-        expected = settings_service.access_password()
-    if not candidate or not expected:
+def verify_password(candidate: str) -> bool:
+    """常量时间验证密码。stored 永远是哈希；若发现裸明文，认为是误存，拒绝。"""
+    if not candidate:
         return False
-    return hmac.compare_digest(candidate, expected)
+    stored = settings_service.access_password_hash()
+    if not stored:
+        return False
+    if is_hash(stored):
+        return _verify_hash(candidate, stored)
+    # 极小概率走到这里：旧明文还没被升级。继续 constant-time 比对，但下次写盘会升级。
+    return hmac.compare_digest(candidate, stored)
 
 
 # ── 速率限制 ──
@@ -147,7 +202,6 @@ def _is_local(request: Request) -> bool:
     return client.host in _LOCAL_IPS
 
 
-# ── 登录页 ──
 LOGIN_PAGE = """<!DOCTYPE html>
 <html>
 <head>
@@ -207,13 +261,10 @@ document.getElementById('f').onsubmit = function(e) {
 </html>"""
 
 
-# 未启用密码也允许访问的诊断/设置接口（让首次启动能进设置页）
 _OPEN_PATHS = frozenset({"/api/login", "/api/settings/check"})
 
 
 class SecurityMiddleware(BaseHTTPMiddleware):
-    """合并路径防护 + 速率限制 + 认证，保证执行顺序。"""
-
     async def dispatch(self, request: Request, call_next):
         normalized = _normalize_path(request.url.path)
         if normalized is None:
@@ -236,8 +287,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     status_code=429,
                 )
 
-        password = settings_service.access_password()
-        if not password:
+        if not _token_material():
             return await call_next(request)
         if _is_local(request):
             return await call_next(request)

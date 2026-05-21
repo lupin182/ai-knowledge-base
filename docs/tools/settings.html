@@ -14,6 +14,33 @@
     <div id="status-pill" class="status-pill"></div>
   </header>
 
+  <!-- ===== 知识库管理：所有 KB CRUD + 上传都在这一节 ===== -->
+  <section class="card">
+    <h2>知识库</h2>
+    <p class="hint">每个知识库 = <code>knowledge_bases/&lt;slug&gt;/</code> 下独立的一个文件夹，互不干扰。URL 形如 <code>/kb/&lt;slug&gt;/</code>。</p>
+    <div id="kb-cards" class="kb-cards"></div>
+
+    <div class="new-kb-row">
+      <details>
+        <summary>＋ 新建一个空知识库</summary>
+        <div class="new-kb-form">
+          <div class="field">
+            <label>名称</label>
+            <input id="kb-new-name" type="text" placeholder="例如：强化学习论文">
+          </div>
+          <div class="field">
+            <label>URL 标识（可选）</label>
+            <input id="kb-new-slug" type="text" placeholder="rl-papers — 留空 = 从名字自动生成">
+            <div class="hint">只能用字母 / 数字 / _ / -，决定 <code>/kb/&lt;这里&gt;/</code> 的 URL。</div>
+          </div>
+          <button class="primary" id="kb-create-btn">创建</button>
+          <span id="kb-create-feedback" class="save-feedback"></span>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===== AI 后端选择 ===== -->
   <section class="card">
     <h2>AI 后端</h2>
     <p class="hint">Claude CLI 需要本机安装 <code>@anthropic-ai/claude-code</code> 并 <code>claude</code> 登录；OpenAI 兼容 API 任何符合 Chat Completions 协议的服务都可（OpenAI、DeepSeek 等）。</p>
@@ -56,9 +83,9 @@
 
   <section class="card">
     <h2>访问密码</h2>
-    <p class="hint">局域网/公网部署时启用。留空 = 不启用密码。本机访问永远直接放行，不需要登录。</p>
+    <p class="hint">局域网/公网部署时启用。留空 = 不启用密码。本机访问永远直接放行。密码存为 scrypt 哈希，明文不落盘。</p>
     <div class="field">
-      <label>密码（留空保留原密码不变；输入 <code>REMOVE</code> 清空）</label>
+      <label>密码（留空 = 保持原密码；输入 <code>REMOVE</code> = 清空）</label>
       <input type="password" id="access-password" placeholder="如需修改在此输入新密码">
       <div class="hint" id="access-password-state"></div>
     </div>

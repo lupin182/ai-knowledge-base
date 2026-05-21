@@ -108,10 +108,19 @@ def read() -> dict[str, Any]:
 
 
 def write(new_settings: dict[str, Any]) -> dict[str, Any]:
-    """原子覆盖写入（先补全再落盘），更新缓存。"""
+    """原子覆盖写入（先补全再落盘），更新缓存。
+
+    若 access_password 是裸明文（不是 scrypt$... 格式），自动哈希升级后落盘。
+    """
     global _CACHE
+    # 延迟 import 避免循环：auth.py 也 import 本模块
+    from server.auth import hash_password, is_hash
+
     defaults = _default_settings()
     merged = _merge_defaults(defaults, new_settings)
+    pwd = (merged.get("access_password") or "").strip()
+    if pwd and not is_hash(pwd):
+        merged["access_password"] = hash_password(pwd)
     with _LOCK:
         tmp = _SETTINGS_FILE.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -136,8 +145,14 @@ def active_backend_name() -> str:
     return read().get("backend") or "claude_cli"
 
 
-def access_password() -> str:
+def access_password_hash() -> str:
+    """返回 access_password 字段的当前值（哈希字符串），未设置时返回空串。"""
     return (read().get("access_password") or "").strip()
+
+
+# 兼容别名，避免别处误以为还是明文
+def access_password() -> str:
+    return access_password_hash()
 
 
 def is_configured() -> bool:

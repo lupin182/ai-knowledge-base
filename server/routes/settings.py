@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from server.auth import _make_token, verify_password
+from server.auth import _make_token, hash_password, is_hash, verify_password
 from server.services import settings_service
 
 router = APIRouter()
@@ -75,9 +75,15 @@ async def update_settings(payload: SettingsPayload):
             old = by_key.get(p.get("key"))
             if old:
                 p["api_key"] = old.get("api_key", "")
-    # 访问密码 sentinel：__KEEP__ 表示保留原密码不变
-    if body.get("access_password") == "__KEEP__":
+    # 访问密码：
+    # - "__KEEP__"   → 保留原值（哈希）
+    # - ""           → 清空密码（不启用认证）
+    # - 其它字符串    → 视为新明文，哈希后存盘
+    pwd_in = body.get("access_password")
+    if pwd_in == "__KEEP__":
         body["access_password"] = current.get("access_password", "")
+    elif pwd_in and not is_hash(pwd_in):
+        body["access_password"] = hash_password(pwd_in)
     try:
         settings_service.write(body)
     except Exception as exc:
@@ -100,9 +106,9 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 async def login(req: LoginRequest):
-    password = settings_service.access_password()
-    if verify_password(req.password, expected=password):
-        token = _make_token(password)
+    if verify_password(req.password):
+        # token 派生材料 = 当前哈希字符串本身
+        token = _make_token(settings_service.access_password_hash())
         resp = JSONResponse({"ok": True})
         resp.set_cookie(
             "kb_auth", token,
