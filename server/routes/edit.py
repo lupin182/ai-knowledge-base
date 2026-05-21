@@ -54,6 +54,7 @@ async def suggest_edit(request: SuggestEditRequest):
 
 @router.post("/apply-edit")
 async def apply_edit(request: ApplyEditRequest):
+    # apply-edit 写盘：禁止写 EXTERNAL_MOUNTS（默认 allow_external=False 会拒）。
     try:
         path = kb_service.validate_path(request.file_path)
     except (FileNotFoundError, ValueError) as e:

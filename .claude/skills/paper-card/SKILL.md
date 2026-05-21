@@ -34,10 +34,12 @@ tags: [tag1, tag2, ...]       # 用于跨卡片筛选，参考已有卡片的 ta
 
 ### 标题块 + 内嵌 PDF
 
+**venue 必须在 body 显式出现一次**——因为 Docsify 渲染时会隐藏 frontmatter，读者只看 frontmatter 看不到发表场所。venue 写法：会议 + 年份（可加期刊卷号 / "Oral" / "Best Paper" 等标识），preprint 写明月份；若有奖项 / 录用类型，加在括号里。
+
 ```markdown
 # <ShortName> — <Full title>
 
-> 📄 **原始论文**：[arXiv <id>](https://arxiv.org/abs/<id>)
+> 📄 **原始论文**：[arXiv <id>](https://arxiv.org/abs/<id>) · **发表场所**：<venue 与 frontmatter 一致>
 > 📖 **内嵌阅读**：在下方阅读器中**选中段落**，右下角会弹出 "Ask AI" 按钮，可把段落喂给右侧 AI 助手追问（AI 已加载本文全文为上下文）。如需全屏请 <a href="/docs/tools/pdf-reader.html?pdf=idea-research/ideas/<slug>/papers/<paper>.pdf&title=<ShortName>" target="_blank">在新标签打开</a>。
 
 <iframe
@@ -46,6 +48,14 @@ tags: [tag1, tag2, ...]       # 用于跨卡片筛选，参考已有卡片的 ta
   loading="lazy"
   title="<ShortName> PDF 内嵌阅读器"></iframe>
 ```
+
+venue 示例：
+- `CVPR 2026`
+- `MICCAI 2024 (Early Accept)`
+- `Medical Image Analysis 2025, Vol.107CA, Article 103789`
+- `IEEE J-BHI 2025, Vol.29 Issue 12, pp.9027-9040`
+- `IPCAI 2024 Best Paper / IJCARS Vol.19`
+- `arXiv 2026-05 (preprint，截至 <YYYY-MM-DD> 无正式接收信息)`
 
 ### 一、这篇论文在做什么？（一句话）
 
@@ -209,6 +219,7 @@ tags: [tag1, tag2, ...]       # 用于跨卡片筛选，参考已有卡片的 ta
 
 - [ ] **frontmatter** 完整：paper / title / authors / affiliation / arxiv / venue / date / tags
 - [ ] **iframe 块**就在标题下方，PDF 路径正确（embed=1 + 同时给"新标签打开"链接）
+- [ ] **venue 在 body 显式出现**（不是只在 frontmatter）——读者在 Docsify 渲染时能直接看到发表场所
 - [ ] **第一节真的是一句话**：加粗后第一句不超过 50 字
 - [ ] **第二节有"和我有什么关系？"** 子段，列出 2–4 个具体下游场景
 - [ ] **第三节有数字**（训练时间 / GPU / 数据量），不能全是定性描述

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from server.config import DEFAULT_KB_SLUG, DOCS_ROOT, KB_ROOT
+from server.config import DEFAULT_KB_SLUG, DOCS_ROOT, EXTERNAL_MOUNTS, KB_ROOT
 
 _SLUG_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _SAFE_UPLOAD_SUFFIXES = {
@@ -219,13 +219,39 @@ def split_docsify_path(url_path: str) -> tuple[str | None, str]:
     return None, path
 
 
+# ── EXTERNAL_MOUNTS 路径解析 ──
+
+def _match_external_mount(url_path: str) -> tuple[str, Path, str] | None:
+    """url_path 命中某个外部挂载前缀时返回 (prefix, mount_root, sub_rel)。"""
+    norm = (url_path or "").lstrip("/")
+    for prefix, mount_root in EXTERNAL_MOUNTS.items():
+        if norm == prefix:
+            return prefix, mount_root, ""
+        if norm.startswith(f"{prefix}/"):
+            return prefix, mount_root, norm[len(prefix) + 1:]
+    return None
+
+
 def resolve_docsify_page(url_path: str) -> ResolvedPage:
-    """把 Docsify 页面路径解析为具体 markdown 文件。"""
+    """把 Docsify 页面路径解析为具体 markdown 文件。
+
+    解析顺序：
+    1. `kb/<slug>/...` → KB_ROOT / slug / ...
+    2. EXTERNAL_MOUNTS 任一前缀命中 → 外部挂载目录
+    3. 空路径 → DOCS_ROOT/README.md（项目首页）
+    4. 否则 → 视为 DEFAULT_KB_SLUG 下的相对路径
+    """
     slug, rel = split_docsify_path(url_path)
+
+    # EXTERNAL_MOUNTS 优先于 fallback 到 DEFAULT_KB_SLUG（用户配置的更"显式"）
     if slug is None:
         if not rel:
             readme = (DOCS_ROOT / "README.md").resolve()
             return ResolvedPage("", "README.md", readme, True)
+        ext = _match_external_mount(rel)
+        if ext is not None:
+            prefix, mount_root, sub = ext
+            return _resolve_under_mount(prefix, mount_root, sub)
         slug = DEFAULT_KB_SLUG
 
     clean = _clean_rel_path(rel)
@@ -243,6 +269,25 @@ def resolve_docsify_page(url_path: str) -> ResolvedPage:
         if candidate.exists():
             return ResolvedPage(slug, f"{clean}/README.md", candidate)
     raise FileNotFoundError(f"No markdown file found for: {url_path}")
+
+
+def _resolve_under_mount(prefix: str, mount_root: Path, sub: str) -> ResolvedPage:
+    """在某个外部挂载下解析 markdown 文件。"""
+    sub = (sub or "").strip().replace("\\", "/").strip("/")
+    # 命中 .md 直接给
+    if sub.endswith(".md"):
+        candidate = (mount_root / sub).resolve()
+        if candidate.is_relative_to(mount_root) and candidate.exists():
+            return ResolvedPage("", f"{prefix}/{sub}", candidate)
+    # 试 sub.md
+    candidate = (mount_root / f"{sub}.md").resolve() if sub else (mount_root / "README.md").resolve()
+    if candidate.is_relative_to(mount_root) and candidate.exists():
+        return ResolvedPage("", f"{prefix}/{sub}.md" if sub else f"{prefix}/README.md", candidate)
+    # 试 sub/README.md
+    candidate = (mount_root / sub / "README.md").resolve() if sub else (mount_root / "README.md").resolve()
+    if candidate.is_relative_to(mount_root) and candidate.exists():
+        return ResolvedPage("", f"{prefix}/{sub}/README.md" if sub else f"{prefix}/README.md", candidate)
+    raise FileNotFoundError(f"{prefix}/{sub}")
 
 
 def resolve_static_file(slug: str, rel_path: str) -> Path:
@@ -383,8 +428,16 @@ async def save_uploads(slug: str, form: Any) -> dict[str, Any]:
 
 # ── 路径校验（提供给老的 file_service 兼容接口）──
 
-def validate_path(file_path: str) -> Path:
-    """兼容旧 file_service.validate_path：限制写入路径必须在某个 KB 内。"""
+def validate_path(file_path: str, *, allow_external: bool = False) -> Path:
+    """把任意来源的相对路径解析为可读绝对路径。
+
+    - `knowledge_bases/<slug>/...` 形式 → 解析到该 KB 内
+    - `<external-prefix>/...`（命中 EXTERNAL_MOUNTS） → 解析到外部挂载（仅 allow_external 为 True 时）
+    - 其它 → 按 docsify 形式解析
+
+    用于 /api/page-source 读取时 allow_external=True；用于 /api/apply-edit 写入时
+    保持默认 False —— 外部挂载是其他仓库 / 文件夹，从 KB UI 写回会让两边发散，禁掉。
+    """
     raw = (file_path or "").strip().replace("\\", "/")
     if not raw:
         raise ValueError("file_path is empty")
@@ -395,6 +448,16 @@ def validate_path(file_path: str) -> Path:
             raise ValueError("file_path must include a slug and a relative path")
         slug, rel = parts[0], parts[1]
         return resolve_kb_path(slug, rel)
+    # 外部挂载（读路径用）
+    ext = _match_external_mount(raw)
+    if ext is not None:
+        if not allow_external:
+            raise ValueError("Cannot write to a path under EXTERNAL_MOUNTS")
+        _, mount_root, sub = ext
+        candidate = (mount_root / sub).resolve() if sub else mount_root.resolve()
+        if not candidate.is_relative_to(mount_root):
+            raise ValueError(f"Path traversal rejected: {file_path}")
+        return candidate
     # 否则按 docsify 形式解析
     resolved = resolve_docsify_page(raw)
     return resolved.abs_path
