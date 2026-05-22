@@ -149,7 +149,7 @@
     },
     {
       type: "js",
-      src: "/docs/js/ai-sidebar.js?v=10",
+      src: "/docs/js/ai-sidebar.js?v=11",
       check: function () { return !!window.__aiSidebarLoaded; },
     },
   ];

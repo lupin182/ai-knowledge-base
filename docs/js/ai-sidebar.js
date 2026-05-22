@@ -574,6 +574,7 @@
       var decoder = new TextDecoder();
       var buffer = "";
       var fullResponse = "";
+      var fullThinking = "";
 
       if (typingEl) { typingEl.remove(); typingEl = null; }
 
@@ -595,6 +596,7 @@
               sessionId = data.session_id;
               saveHistory();
             } else if (data.type === "thinking") {
+              fullThinking += data.content || "";
               var thinkEl = thinkContainer.querySelector(".ai-thinking-block");
               if (!thinkEl) {
                 thinkEl = document.createElement("details");
@@ -603,7 +605,7 @@
                 thinkEl.innerHTML = "<summary>Thinking</summary><pre></pre>";
                 thinkContainer.appendChild(thinkEl);
               }
-              thinkEl.querySelector("pre").textContent = data.content;
+              thinkEl.querySelector("pre").textContent = fullThinking;
               scrollToBottom();
             } else if (data.type === "text") {
               fullResponse += data.content;
