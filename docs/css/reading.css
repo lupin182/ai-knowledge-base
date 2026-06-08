@@ -1,0 +1,122 @@
+/* 每页阅读状态(三态) + 行内笔记标注（reading.js 注入到 h1 下面） */
+.kb-reading-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 22px;
+  padding: 7px 10px;
+  border: 1px solid var(--kb-border, #e4e4e7);
+  border-radius: 8px;
+  background: var(--kb-surface, #fafafa);
+  font-size: 13px;
+}
+
+/* 三态分段控件 */
+.kb-status-seg {
+  display: inline-flex;
+  border: 1px solid var(--kb-border, #dcdce0);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.kb-status-seg button {
+  border: none;
+  border-left: 1px solid var(--kb-border, #dcdce0);
+  background: transparent;
+  color: inherit;
+  padding: 4px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.5;
+  transition: background 0.12s;
+}
+.kb-status-seg button:first-child { border-left: none; }
+.kb-status-seg button:hover { background: rgba(0, 0, 0, 0.05); }
+.kb-status-seg button.active-unread { background: #9e9e9e; color: #fff; }
+.kb-status-seg button.active-reading { background: #f59e0b; color: #fff; }
+.kb-status-seg button.active-read { background: #2e7d32; color: #fff; }
+
+.kb-note-count { color: #6a6a6a; font-size: 12px; margin-left: auto; }
+
+/* 行内标注：点状下划线，hover 高亮 */
+.kb-annot {
+  border-bottom: 2px dotted #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  cursor: pointer;
+  border-radius: 1px;
+}
+.kb-annot:hover { background: rgba(245, 158, 11, 0.2); }
+
+/* 笔记弹框 */
+.kb-annot-popup {
+  position: absolute;
+  z-index: 1210;
+  width: 300px;
+  max-width: 90vw;
+  background: var(--kb-surface-2, #fff);
+  border: 1px solid var(--kb-border, #d8d8dc);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px;
+}
+.kb-annot-sel {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 6px;
+  max-height: 40px;
+  overflow: hidden;
+}
+.kb-annot-text {
+  width: 100%;
+  min-height: 80px;
+  padding: 7px 9px;
+  border: 1px solid var(--kb-border, #dcdce0);
+  border-radius: 6px;
+  background: var(--kb-surface, #fff);
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.kb-annot-text:focus { outline: none; border-color: var(--kb-accent, #3f51b5); }
+.kb-annot-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+.kb-annot-actions button {
+  border: 1px solid var(--kb-border, #dcdce0);
+  background: transparent;
+  color: inherit;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.kb-annot-del { color: #e53935 !important; }
+.kb-annot-done { background: #3f51b5 !important; border-color: #3f51b5 !important; color: #fff !important; }
+
+/* 未定位笔记面板 */
+.kb-orphan-panel {
+  margin: -10px 0 20px;
+  font-size: 12px;
+  color: #8a6d3b;
+}
+.kb-orphan-panel summary { cursor: pointer; padding: 4px 0; }
+.kb-orphan-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px dashed var(--kb-border, #e4e4e7); }
+.kb-orphan-q { color: #888; flex: 0 0 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-orphan-n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-orphan-del { border: none; background: none; color: #e53935; cursor: pointer; font-size: 12px; }
+
+/* 侧栏按阅读状态：在读=左侧细琥珀条(柔和)，已读=淡化(让未读更显眼)；尾部小图标标记 */
+.sidebar nav a.kb-sb-reading { box-shadow: inset 2px 0 0 #f59e0b; }
+.sidebar nav a.kb-sb-read { opacity: 0.5; }
+.sidebar nav a.kb-sb-read::after { content: "✓"; color: #2e7d32; margin-left: 5px; font-size: 10px; opacity: 0.8; }
+.sidebar nav a.kb-sb-reading::after { content: "◑"; color: #f59e0b; margin-left: 5px; font-size: 10px; }
+.sidebar nav a.kb-sb-noted::before { content: "•"; color: #e53935; margin-right: 3px; }
+
+/* 深色模式 */
+html[data-mode="dark"] .kb-reading-bar { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.12); }
+html[data-mode="dark"] .kb-status-seg,
+html[data-mode="dark"] .kb-status-seg button { border-color: rgba(255, 255, 255, 0.14); }
+html[data-mode="dark"] .kb-status-seg button:hover { background: rgba(255, 255, 255, 0.08); }
+html[data-mode="dark"] .kb-annot-popup { background: #23262d; border-color: rgba(255, 255, 255, 0.14); }
+html[data-mode="dark"] .kb-annot-text { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.14); }

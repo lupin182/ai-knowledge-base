@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Environment
+.env
+!server/.env.example
+
+# Runtime settings (contains API keys / passwords — never commit)
+.settings.json
+server/.settings.json
+
+# 公开库：只跟踪原始的 ai-ml-interview 语料。别人通过 KB 管理面板新建/上传、
+# 或 PR 加进来的其它 KB 顶层目录一律不入 git，避免奇怪语料污染仓库。
+# （真要新增公开 KB，就在这里加一行白名单 !knowledge_bases/<slug>/）
+knowledge_bases/*
+!knowledge_bases/ai-ml-interview/
+# KB 运行时缓存不入 git（.kb/meta.json 等元数据仍跟踪）
+knowledge_bases/ai-ml-interview/.kb/cache/
+# 个人阅读状态 + 笔记：公开库不公开（私人库则入 git 备份）
+knowledge_bases/*/.kb/reading-state.json
+
+# Backup
+_backup/
+*.bak
+_trash
+
+# Accidental Windows env-var leak (don't touch — created by some external tool)
+%SystemDrive%/
+
+# CLI sandbox (auto-generated, now at parent dir)
+_cli_sandbox/
+debug_out.txt
+
+# Uploaded-image scratch dir (server writes per-request, cleans up after)
+.tmp_images/
+
+# Astro frontend (web/) build artifacts + sync-content.mjs 生成内容（源码追踪，产物忽略）
+web/node_modules/
+web/.astro/
+web/dist/
+web/dist_new/
+web/dist_old/
+web/.vite/
+web/src/content/docs/
+web/public/docs/
+web/public/knowledge_bases/
+web/public/external-reports/
+web/screenshots/
+
+# Claude Code
+.claude/skills/research-notes-skill/
+# 本机权限配置——每台机器各管各的，不入 git
+.claude/settings.local.json
+# 外部挂载页(EXTERNAL_MOUNTS)的阅读态——本机内容，不入 git
+.reading-external.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.auth_secret
