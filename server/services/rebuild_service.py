@@ -72,9 +72,12 @@ def _newest_source_mtime() -> float:
     """
     newest = 0.0
     roots = [(DOCS_ROOT / "knowledge_bases", "*"), (WEB / "src", "*"), (DOCS_ROOT / "docs", "*")]
-    # 外部挂载（EXTERNAL_MOUNTS，如 F: 上的 external-reports）也纳入：否则只在那边加/改文章
-    # 时 staleness 察觉不到 → /api/rebuild 与启动检查都不重建 → 外部更新一直不生效。
-    roots += [(mount, "*") for mount in EXTERNAL_MOUNTS.values()]
+    # 外部挂载（env 的 EXTERNAL_MOUNTS + 设置页管理的 external_mounts）也纳入：否则只在那边
+    # 加/改文章时 staleness 察觉不到 → /api/rebuild 与启动检查都不重建 → 外部更新一直不生效。
+    from pathlib import Path as _Path
+    from server.services import settings_service as _ss
+    ext = list(EXTERNAL_MOUNTS.values()) + [_Path(p) for p in _ss.external_mounts().values()]
+    roots += [(m, "*") for m in ext]
     skips = [WEB / "src" / "content", DIST, DIST_NEW, DIST_OLD, WEB / "node_modules"]
     for base, pattern in roots:
         if not base.exists():

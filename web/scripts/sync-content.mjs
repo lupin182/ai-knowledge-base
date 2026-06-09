@@ -42,23 +42,41 @@ async function discoverKBs() {
   }
 }
 
-// 解析 server/.env 里的 EXTERNAL_MOUNTS（跨盘挂载，例如 external-reports
-// → F:/onedrive-ex-jason/.../cluster_sync/reports），把它们也 sync 进来。
-async function readExternalMounts() {
+// 外部挂载来源有二，合并（设置页优先）：
+//   1) server/.env 的 EXTERNAL_MOUNTS（旧方式，JSON）
+//   2) server/.settings.json 的 external_mounts（设置页 UI 管理，{前缀: 绝对路径}）
+// 跳过保留前缀，避免和 /kb /api /docs 等撞。
+const RESERVED_PREFIXES = new Set(['kb', 'api', 'server', 'knowledge_bases', '_trash', '_backup', 'docs']);
+
+async function readEnvMounts() {
   try {
     const envText = await fs.readFile(resolve(KB_ROOT, 'server', '.env'), 'utf-8');
     const m = envText.match(/^\s*EXTERNAL_MOUNTS\s*=\s*(.+)$/m);
     if (!m) return {};
     let json = m[1].trim();
-    // 去掉可能的引号
     if ((json.startsWith('"') && json.endsWith('"')) || (json.startsWith("'") && json.endsWith("'"))) {
       json = json.slice(1, -1);
     }
     return JSON.parse(json);
-  } catch (e) {
-    console.warn('  (EXTERNAL_MOUNTS 解析失败:', e.message, ')');
-    return {};
+  } catch { return {}; }
+}
+
+async function readSettingsMounts() {
+  try {
+    const s = JSON.parse(await fs.readFile(resolve(KB_ROOT, 'server', '.settings.json'), 'utf-8'));
+    return (s && s.external_mounts) || {};
+  } catch { return {}; }
+}
+
+async function readExternalMounts() {
+  const merged = { ...(await readEnvMounts()), ...(await readSettingsMounts()) };
+  const out = {};
+  for (const [prefix, p] of Object.entries(merged)) {
+    const clean = String(prefix).replace(/^\/+|\/+$/g, '');
+    if (!clean || RESERVED_PREFIXES.has(clean) || !p) continue;
+    out[clean] = String(p);
   }
+  return out;
 }
 
 // 同步 .md（剥 frontmatter 后写入）+ 图片/PDF/JSON（原样拷）

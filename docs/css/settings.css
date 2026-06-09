@@ -171,6 +171,25 @@ body {
   word-break: break-word;
 }
 
+/* 外部挂载行：前缀 + 路径 + 删 */
+.ext-mount-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.ext-mount-row .ext-prefix { flex: 0 0 200px; }
+.ext-mount-row .ext-path { flex: 1; min-width: 0; }
+.ext-mount-row input {
+  padding: 8px 10px; border: 1px solid #ccd3df; border-radius: 6px; font-size: 13px; box-sizing: border-box;
+}
+.ext-mount-row input:focus { outline: none; border-color: #3f51b5; }
+.ext-mount-row .ext-del { flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
+#ext-mount-add { margin: 2px 0 10px; }
+
+/* 折叠式说明块（KB 格式 / 外部挂载注意） */
+.kb-help { margin-top: 12px; border: 1px solid #e1e5ec; border-radius: 8px; background: #f7f8fc; }
+.kb-help > summary { cursor: pointer; padding: 9px 13px; font-size: 13px; color: #3f51b5; user-select: none; }
+.kb-help-body { padding: 2px 16px 12px; font-size: 12.5px; color: #555; line-height: 1.75; }
+.kb-help-body p { margin: 6px 0; }
+.kb-help-body ul { margin: 4px 0; padding-left: 20px; }
+.kb-help-body code { background: #eef0f5; padding: 1px 5px; border-radius: 4px; }
+
 .profile-card {
   border: 1px solid #e1e5ec;
   border-radius: 8px;

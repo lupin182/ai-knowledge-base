@@ -306,6 +306,9 @@
     $("access-password-state").textContent = s.access_password_set
       ? "当前已设置密码（本机访问无需密码）"
       : "当前未设置密码";
+
+    // 外部资源挂载
+    renderExternalMounts();
   }
 
   function onBackendChange() {
@@ -420,7 +423,67 @@
         with_page: $("chat-with-page").checked,
         ai_full_access: !!($("chat-ai-full-access") && $("chat-ai-full-access").checked),
       },
+      external_mounts: collectExternalMounts(),
     };
+  }
+
+  // ───── 外部资源挂载（绝对路径，存 settings.external_mounts；sync-content 据此拷进构建）─────
+  function extMountRow(prefix, path) {
+    var box = $("ext-mount-rows");
+    if (!box) return;
+    var row = document.createElement("div");
+    row.className = "ext-mount-row";
+    row.innerHTML =
+      '<input class="ext-prefix" placeholder="前缀 (如 external-reports)">' +
+      '<input class="ext-path" placeholder="绝对路径 (如 F:/onedrive/reports)">' +
+      '<button type="button" class="danger small ext-del">删</button>';
+    row.querySelector(".ext-prefix").value = prefix || "";
+    row.querySelector(".ext-path").value = path || "";
+    row.querySelector(".ext-del").addEventListener("click", function () { row.remove(); });
+    box.appendChild(row);
+  }
+  function renderExternalMounts() {
+    var box = $("ext-mount-rows");
+    if (!box) return;
+    box.innerHTML = "";
+    var mounts = (state.settings && state.settings.external_mounts) || {};
+    var keys = Object.keys(mounts);
+    if (!keys.length) { extMountRow("", ""); return; }   // 至少留一空行
+    keys.forEach(function (k) { extMountRow(k, mounts[k]); });
+  }
+  function collectExternalMounts() {
+    var out = {};
+    document.querySelectorAll("#ext-mount-rows .ext-mount-row").forEach(function (row) {
+      var p = (row.querySelector(".ext-prefix").value || "").trim().replace(/^\/+|\/+$/g, "");
+      var v = (row.querySelector(".ext-path").value || "").trim();
+      if (p && v) out[p] = v;
+    });
+    return out;
+  }
+  async function saveExternalMounts() {
+    var fb = $("ext-mount-feedback");
+    if (fb) { fb.textContent = "保存中…"; fb.className = "save-feedback"; }
+    try {
+      var resp = await fetch("/api/settings", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload()),
+      });
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || "HTTP " + resp.status);
+      state.settings = data;
+      renderExternalMounts();
+      if (fb) fb.textContent = "已保存，重建中…";
+      var rb = await fetch("/api/rebuild?force=1", { method: "POST", credentials: "include" })
+        .then(function (r) { return r.json(); }).catch(function () { return null; });
+      if (fb) {
+        fb.className = "save-feedback ok";
+        if (rb && rb.rebuilt) fb.textContent = "已保存并重建 ✓ 刷新查看";
+        else if (rb && rb.ok) fb.textContent = "已保存 ✓（dist 未变）";
+        else { fb.className = "save-feedback error"; fb.textContent = "已保存；重建失败，稍后手动重建"; }
+      }
+    } catch (err) {
+      if (fb) { fb.textContent = "保存失败：" + err.message; fb.className = "save-feedback error"; }
+    }
   }
 
   async function save() {
@@ -462,6 +525,11 @@
   if (kbPromptSel) kbPromptSel.addEventListener("change", function () { loadKbPrompt(kbPromptSel.value); });
   var kbPromptSaveBtn = $("kb-prompt-save-btn");
   if (kbPromptSaveBtn) kbPromptSaveBtn.addEventListener("click", saveKbPrompt);
+
+  var extAddBtn = $("ext-mount-add");
+  if (extAddBtn) extAddBtn.addEventListener("click", function () { extMountRow("", ""); });
+  var extSaveBtn = $("ext-mount-save");
+  if (extSaveBtn) extSaveBtn.addEventListener("click", saveExternalMounts);
 
   loadSettings();
 })();

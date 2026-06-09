@@ -24,6 +24,7 @@ class SettingsPayload(BaseModel):
     claude_cli: dict[str, Any] = Field(default_factory=dict)
     openai_api: dict[str, Any] = Field(default_factory=dict)
     chat_defaults: dict[str, Any] = Field(default_factory=dict)
+    external_mounts: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("backend")
     @classmethod
@@ -75,6 +76,8 @@ async def update_settings(payload: SettingsPayload, request: Request):
         old_full = bool((current.get("chat_defaults") or {}).get("ai_full_access", False))
         body["claude_cli"] = {**(body.get("claude_cli") or {}), "cli_path": old_cli}
         body["chat_defaults"] = {**(body.get("chat_defaults") or {}), "ai_full_access": old_full}
+        # 外部挂载是任意文件系统路径（远程改 = 能把任意目录挂出来）→ 也只允许本机改。
+        body["external_mounts"] = current.get("external_mounts", {})
     # 如果前端在某个模型 profile 里保留 ****，用旧值兜底
     new_openai = body.get("openai_api") or {}
     new_profiles = new_openai.get("models") or []

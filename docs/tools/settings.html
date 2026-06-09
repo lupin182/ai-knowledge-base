@@ -38,6 +38,44 @@
         </div>
       </details>
     </div>
+
+    <details class="kb-help">
+      <summary>📋 添加内容的格式 / 操作说明</summary>
+      <div class="kb-help-body">
+        <p><strong>两种加法</strong>：① 上面「新建空知识库」→ 在卡片里上传文件/文件夹；② 直接往 <code>knowledge_bases/&lt;slug&gt;/</code> 放 markdown 再重建。</p>
+        <p><strong>硬性格式</strong>：</p>
+        <ul>
+          <li><code>slug</code> 只能 <code>A–Z a–z 0–9 _ -</code>（1–64 字）；URL <strong>大小写敏感</strong>。</li>
+          <li>每个 KB <strong>必须有 <code>README.md</code></strong> —— 它是该 KB 首页，也是首页卡片标题/简介的来源。</li>
+          <li>内容用 markdown；跨 KB 引用写<strong>绝对路径</strong> <code>/kb/&lt;别的slug&gt;/路径.md</code>（写 <code>.md</code>，构建时自动转目录路由；大小写要和文件名一致）。</li>
+          <li>图片直接相对引用 <code>![](./图.png)</code> 即可（静态服务，不做优化）。</li>
+        </ul>
+        <p><strong>软约定</strong>：侧栏默认按文件夹结构自动生成；要精排就加 <code>_sidebar.md</code>（<code>_</code> 前缀的文件不发布成页面）。加完内容要<strong>重建</strong>才在站点看到（AI/编辑器改完会自动触发，或重启）。</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ===== 外部资源挂载（绝对路径，不拷进仓库）===== -->
+  <section class="card">
+    <h2>外部资源挂载</h2>
+    <p class="hint">把<strong>仓库之外</strong>的文件夹（绝对路径，如 <code>F:/onedrive/reports</code>）挂进站点浏览。文件<strong>留在原地、不拷进仓库、不入 git</strong>，按 <code>/&lt;前缀&gt;/...</code> 访问。适合大体量 / 集群同步来的参考资料。改完点「保存并重建」生效。</p>
+    <div id="ext-mount-rows"></div>
+    <button class="secondary" id="ext-mount-add" type="button">＋ 添加挂载</button>
+    <div class="footer-actions">
+      <button class="primary" id="ext-mount-save">保存并重建</button>
+      <span id="ext-mount-feedback" class="save-feedback"></span>
+    </div>
+    <details class="kb-help" style="margin-top:10px">
+      <summary>说明 / 与「上传到知识库」的区别</summary>
+      <div class="kb-help-body">
+        <ul>
+          <li><strong>前缀</strong>：URL 段名，只用字母/数字/_/-；避开保留词 <code>kb / api / server / docs / knowledge_bases</code>。</li>
+          <li><strong>路径</strong>：绝对文件系统路径（Windows 用正斜杠如 <code>F:/a/b</code> 更稳）。路径不存在会被静默跳过。</li>
+          <li><strong>vs 上传到知识库</strong>：上传会把文件<strong>拷进</strong> <code>knowledge_bases/</code>（入库 + 随仓库同步）；外部挂载只<strong>引用</strong>原地文件，URL 走独立前缀，不入库。</li>
+          <li>仅本机可改（安全：避免远程把任意目录挂出来）。保存后会自动重建一次把内容同步进站点。</li>
+        </ul>
+      </div>
+    </details>
   </section>
 
   <!-- ===== AI 提示词 ===== -->

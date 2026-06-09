@@ -81,6 +81,9 @@ def _default_settings() -> dict[str, Any]:
             # 公开实例务必保持 False——否则一旦对外暴露，外部请求就能借 AI 在你机器上跑命令。
             "ai_full_access": False,
         },
+        # 外部资源挂载：{前缀: 绝对路径}，把仓库外的文件夹挂进站点（设置页可改，仅本机）。
+        # sync-content 据此把外部内容拷进构建；和 server/.env 的 EXTERNAL_MOUNTS 合并（二者皆生效）。
+        "external_mounts": {},
     }
 
 
@@ -170,6 +173,12 @@ def ai_full_access() -> bool:
     return bool(read().get("chat_defaults", {}).get("ai_full_access", False))
 
 
+def external_mounts() -> dict:
+    """设置页管理的外部挂载 {前缀: 绝对路径}。与 server/.env 的 EXTERNAL_MOUNTS 互补。"""
+    m = read().get("external_mounts") or {}
+    return {str(k): str(v) for k, v in m.items() if str(k).strip() and str(v).strip()}
+
+
 def is_configured() -> bool:
     """判断当前 backend 是否可用。"""
     s = read()
@@ -206,6 +215,7 @@ def public_view() -> dict[str, Any]:
         "claude_cli": s["claude_cli"],
         "openai_api": openai,
         "chat_defaults": s.get("chat_defaults", {}),
+        "external_mounts": s.get("external_mounts", {}),
         "is_configured": is_configured(),
         "claude_cli_available": bool(_detect_claude_cli()),
     }
