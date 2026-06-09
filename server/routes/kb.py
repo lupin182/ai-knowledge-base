@@ -127,6 +127,13 @@ async def put_kb_prompt(slug: str, request: KbPromptRequest):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+@router.get("/api/prompt/base")
+async def get_base_prompt():
+    """基础系统提示词（只读）。每次对话默认带，KB 额外提示词追加在它之后。设置页展示用。"""
+    from server.backends import claude_cli
+    return {"base": claude_cli.base_system_prompt()}
+
+
 class ReadingRequest(BaseModel):
     path: str
     status: str = "unread"          # unread | reading | read

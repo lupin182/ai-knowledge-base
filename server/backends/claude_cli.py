@@ -74,6 +74,11 @@ def _bound_to_loopback() -> bool:
     """
     return os.environ.get("KB_BOUND_HOST", "").strip().lower() in _LOOPBACK_HOSTS
 
+
+def base_system_prompt() -> str:
+    """基础系统提示词（每次对话默认带，KB 额外提示词追加在它之后）。设置页只读展示用。"""
+    return _BASE_SYSTEM_PROMPT
+
 _BASE_SYSTEM_PROMPT = (
     "你是一个知识库助手。严格遵守以下规则：\n\n"
     "## 文件访问规则\n"

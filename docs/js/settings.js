@@ -31,8 +31,22 @@
       state.settings = await resp.json();
       renderAll();
       loadKbs();
+      loadBasePrompt();
     } catch (err) {
       setPill("加载失败: " + err.message, "bad");
+    }
+  }
+
+  // 只读展示基础系统提示词（KB 额外提示词追加在它之后）
+  async function loadBasePrompt() {
+    var el = $("base-prompt");
+    if (!el) return;
+    try {
+      var resp = await fetch("/api/prompt/base");
+      var data = await resp.json();
+      el.textContent = (data && data.base) || "(空)";
+    } catch (err) {
+      el.textContent = "加载失败：" + err.message;
     }
   }
 

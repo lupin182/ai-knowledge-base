@@ -40,17 +40,26 @@
     </div>
   </section>
 
-  <!-- ===== 每个 KB 的 AI 提示词 ===== -->
+  <!-- ===== AI 提示词 ===== -->
   <section class="card">
-    <h2>知识库 AI 提示词</h2>
-    <p class="hint">为某个知识库单独给 AI 助手追加一段提示词（拼在基础系统提示词后面）。例如告诉它该 KB 的写作风格、术语习惯、引用规范等。留空 = 只用基础提示词。<strong>新开对话时生效</strong>。</p>
+    <h2>AI 提示词</h2>
+    <p class="hint">每次对话 = <strong>基础系统提示词</strong>（所有 KB 通用）+（可选）<strong>该知识库的额外提示词</strong>（追加在后面）。下面可查看基础提示词、并给某个 KB 追加专属说明。<strong>新开对话时生效</strong>。</p>
+
+    <div class="field">
+      <label>基础系统提示词（所有对话默认带，只读）</label>
+      <details class="prompt-view">
+        <summary>展开查看基础提示词</summary>
+        <pre id="base-prompt" class="prompt-pre">加载中…</pre>
+      </details>
+    </div>
+
     <div class="field">
       <label>选择知识库</label>
       <select id="kb-prompt-select"></select>
     </div>
     <div class="field">
-      <label>该知识库的额外提示词</label>
-      <textarea id="kb-prompt-text" rows="8" placeholder="例如：本 KB 是外科 VQLA 论文卡片库。回答时保留英文术语（bbox / mIoU / VQLA），公式用原文符号，不要加批判分析。"></textarea>
+      <label>该知识库的额外提示词（追加在基础提示词之后；留空 = 只用基础）</label>
+      <textarea id="kb-prompt-text" rows="8" placeholder="例如：本 KB 是某领域的论文卡片库。回答时保留英文术语（如 bbox / mIoU），公式用原文符号，不要加批判分析。"></textarea>
     </div>
     <div class="footer-actions">
       <button class="primary" id="kb-prompt-save-btn">保存提示词</button>
