@@ -6,7 +6,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-from server.backends import get_active_backend
+from server.backends import get_active_backend, get_backend_for
 from server.models import ChatRequest
 from server.services import kb_service, settings_service
 
@@ -31,7 +31,8 @@ async def chat(request: ChatRequest):
 
     messages = [{"role": m.role, "content": m.content} for m in request.messages]
     images = [{"base64": img.base64, "media_type": img.media_type} for img in request.images]
-    backend = get_active_backend()
+    # 统一选择器：按前端所选模型的 provider 路由（claude_cli / openai_api）；未带 = 默认 backend。
+    backend = get_backend_for(request.provider) if request.provider else get_active_backend()
 
     def event_generator():
         try:

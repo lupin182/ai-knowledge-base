@@ -135,13 +135,25 @@
     }
   }
 
+  // 统一选择器：思考强度下拉只在所选模型属于 Claude(claude_cli) 时显示并发送 effort。
+  // OpenAI 兼容的普通模型发 effort/reasoning 会报错，所以切到这类模型就隐藏、也不发。
+  function updateThinkingForModel() {
+    var pm = window.AI_SIDEBAR_PROVIDER || {};
+    var prov = (modelSelect && pm[modelSelect.value]) || "";
+    var supported = prov ? (prov === "claude_cli") : true;  // 无映射(离线兜底全 Claude) → 视为支持
+    window.AI_SIDEBAR_THINKING_SUPPORTED = supported;
+    if (thinkSelect) thinkSelect.style.display = supported ? "" : "none";
+  }
+  window.AI_SIDEBAR_updateThinking = updateThinkingForModel;
+
   if (modelSelect) {
-    modelSelect.addEventListener("change", saveModel);
+    modelSelect.addEventListener("change", function () { saveModel(); updateThinkingForModel(); });
   }
 
   // 页面加载时恢复历史和模型选择
   loadHistory();
   loadModel();
+  updateThinkingForModel();
 
   // 思考强度持久化（同 model）
   var THINK_STORAGE_KEY = "ai_sidebar_think";
@@ -448,6 +460,7 @@
         selected_text: selection || "",
         messages: messages,
         model: modelSelect ? modelSelect.value : DEFAULT_MODEL,
+        provider: (window.AI_SIDEBAR_PROVIDER && modelSelect && window.AI_SIDEBAR_PROVIDER[modelSelect.value]) || "",
         thinking: !!effortVal,
         effort: effortVal,
         images: images,

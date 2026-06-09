@@ -7,16 +7,24 @@
   // ctx   : context window in tokens, consumed by ai-sidebar.js's usage bar
   // Adding a new model? Add ONE entry here. ai-sidebar.js, index.html, and
   // pdf-reader.html all pick it up automatically.
+  // provider: 统一选择器按它路由（claude_cli / openai_api）。group: 下拉里的 optgroup 标签。
+  var _CC = "Claude CLI（订阅）";
   var MODELS = [
-    { value: "claude-opus-4-8",           label: "Opus 4.8",   ctx: 1000000 },
-    { value: "claude-opus-4-7",           label: "Opus 4.7",   ctx: 1000000 },
-    { value: "claude-sonnet-4-6",         label: "Sonnet 4.6", ctx: 200000  },
-    { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5",  ctx: 200000  },
+    { value: "claude-opus-4-8",           label: "Opus 4.8",   ctx: 1000000, provider: "claude_cli", group: _CC },
+    { value: "claude-opus-4-7",           label: "Opus 4.7",   ctx: 1000000, provider: "claude_cli", group: _CC },
+    { value: "claude-sonnet-4-6",         label: "Sonnet 4.6", ctx: 200000,  provider: "claude_cli", group: _CC },
+    { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5",  ctx: 200000,  provider: "claude_cli", group: _CC },
   ];
   var DEFAULT_MODEL = "claude-opus-4-8";
 
+  function _providerMap() {
+    var m = {};
+    MODELS.forEach(function (x) { m[x.value] = x.provider || "claude_cli"; });
+    return m;
+  }
   window.AI_SIDEBAR_MODELS = MODELS;
   window.AI_SIDEBAR_DEFAULT_MODEL = DEFAULT_MODEL;
+  window.AI_SIDEBAR_PROVIDER = _providerMap();
 
   // ========== Sidebar markup ==========
 
@@ -29,10 +37,21 @@
   }
 
   function buildOptionsHtml(defaultModel) {
-    return MODELS.map(function (m) {
+    // 按 group(provider) 分成 optgroup —— 统一选择器把 Claude 和各 API 模型分组并列。
+    var groups = {}, order = [];
+    MODELS.forEach(function (m) {
+      var g = m.group || "模型";
+      if (!groups[g]) { groups[g] = []; order.push(g); }
+      groups[g].push(m);
+    });
+    function opt(m) {
       var sel = m.value === defaultModel ? " selected" : "";
-      return '<option value="' + escapeAttr(m.value) + '"' + sel + '>' +
-        escapeAttr(m.label) + "</option>";
+      return '<option value="' + escapeAttr(m.value) + '"' + sel + '>' + escapeAttr(m.label) + "</option>";
+    }
+    // 只有一个分组时不套 optgroup（保持简洁）
+    if (order.length <= 1) return MODELS.map(opt).join("");
+    return order.map(function (g) {
+      return '<optgroup label="' + escapeAttr(g) + '">' + groups[g].map(opt).join("") + "</optgroup>";
     }).join("");
   }
 
@@ -43,36 +62,42 @@
   }
   function applyServerModels(settings) {
     if (!settings) return;
-    // 思考强度（--effort / reasoning_effort）只有 Claude 后端确定支持；OpenAI 兼容后端
-    // 的普通模型不一定有推理能力（发了反而报错），所以非 Claude 后端隐藏整个思考下拉。
-    // AI_SIDEBAR_THINKING_SUPPORTED 供 ai-sidebar.js 决定要不要把 effort 发给后端。
-    var think = document.getElementById("ai-think");
-    var thinkingSupported = settings.backend === "claude_cli";
-    window.AI_SIDEBAR_THINKING_SUPPORTED = thinkingSupported;
-    if (think) {
-      think.style.display = thinkingSupported ? "" : "none";
-      // 默认值来自设置页 chat_defaults.effort（用户在 ai-sidebar.js 里改过则 localStorage 覆盖）
-      var cd = settings.chat_defaults || {};
-      if (thinkingSupported && cd.effort !== undefined) think.value = cd.effort;
-    }
-    var cfg = settings.backend === "openai_api" ? settings.openai_api : settings.claude_cli;
-    var profiles = (cfg && cfg.models) || [];
-    if (!profiles.length) return;
-    MODELS = profiles.map(function (p) {
-      return { value: p.model, label: p.name || p.model, ctx: _ctxFor(p) };
+    // 统一选择器：Claude CLI 模型 + 所有已配置的 OpenAI 兼容模型放进同一份清单，各带 provider。
+    // 思考下拉的显隐改为按"当前选中模型的 provider"决定（ai-sidebar.js 的 updateThinking），
+    // 不再按全局 backend——这样混选时切到 Claude 模型才显示思考强度。
+    var providerMap = {}, models = [];
+    var cc = settings.claude_cli || {};
+    (cc.models || []).forEach(function (p) {
+      if (!p.model) return;
+      models.push({ value: p.model, label: p.name || p.model, ctx: _ctxFor(p), provider: "claude_cli", group: "Claude CLI（订阅）" });
+      providerMap[p.model] = "claude_cli";
     });
+    var oa = settings.openai_api || {};
+    (oa.models || []).forEach(function (p) {
+      if (!p.model || p.configured === false) return;  // 未配 key 的 API 模型不列
+      models.push({ value: p.model, label: p.name || p.model, ctx: _ctxFor(p), provider: "openai_api", group: "API（OpenAI 兼容）" });
+      providerMap[p.model] = "openai_api";
+    });
+    if (!models.length) return;  // 两边都没配 → 保留内置兜底
+    MODELS = models;
     window.AI_SIDEBAR_MODELS = MODELS;
-    var defProfile = profiles.filter(function (p) { return p.key === cfg.default_model_key; })[0] || profiles[0];
-    if (defProfile) {
-      DEFAULT_MODEL = defProfile.model;
-      window.AI_SIDEBAR_DEFAULT_MODEL = DEFAULT_MODEL;
-    }
+    window.AI_SIDEBAR_PROVIDER = providerMap;
+    // 默认模型 = 全局默认 backend 的默认项（落不到就用清单首项）
+    var defCfg = settings.backend === "openai_api" ? oa : cc;
+    var dp = ((defCfg.models) || []).filter(function (p) { return p.key === defCfg.default_model_key; })[0] || (defCfg.models || [])[0];
+    DEFAULT_MODEL = (dp && dp.model && providerMap[dp.model]) ? dp.model : models[0].value;
+    window.AI_SIDEBAR_DEFAULT_MODEL = DEFAULT_MODEL;
+    // 思考强度默认值（显隐交给 updateThinking）
+    var think = document.getElementById("ai-think");
+    var cd = settings.chat_defaults || {};
+    if (think && cd.effort !== undefined) think.value = cd.effort;
     var sel = document.getElementById("ai-model");
     if (sel) {
       var prev = sel.value;
       sel.innerHTML = buildOptionsHtml(DEFAULT_MODEL);
       if (prev && MODELS.some(function (m) { return m.value === prev; })) sel.value = prev;
     }
+    if (window.AI_SIDEBAR_updateThinking) window.AI_SIDEBAR_updateThinking();
   }
   function fetchServerModels() {
     var base = window.__KB_API_BASE || "";

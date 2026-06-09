@@ -55,8 +55,23 @@ class Backend(Protocol):
         ...
 
 
+def get_backend_for(name: str) -> Backend:
+    """按 provider 名返回 backend 实例（统一选择器：对话按所选模型的 provider 路由，
+    不再受全局 backend 开关限制 → Claude CLI 与各 OpenAI 兼容 API 可在同一下拉里混选）。
+    未知/空 → 回退到默认 backend。"""
+    name = (name or "").strip()
+    # 延迟 import 避免循环依赖。
+    if name == "openai_api":
+        from server.backends.openai_api import OpenAIAPIBackend
+        return OpenAIAPIBackend()
+    if name == "claude_cli":
+        from server.backends.claude_cli import ClaudeCLIBackend
+        return ClaudeCLIBackend()
+    return get_active_backend()
+
+
 def get_active_backend() -> Backend:
-    """工厂：按当前 settings 返回 backend 实例。"""
+    """工厂：按当前 settings 的默认 backend 返回实例（未指定 provider 时用）。"""
     name = settings_service.active_backend_name()
     # 延迟 import 避免循环依赖。
     if name == "openai_api":
