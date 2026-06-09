@@ -14,7 +14,7 @@ import subprocess
 import threading
 import time
 
-from server.config import DOCS_ROOT, WEB_DIST
+from server.config import DOCS_ROOT, EXTERNAL_MOUNTS, WEB_DIST
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,9 @@ def _newest_source_mtime() -> float:
     """
     newest = 0.0
     roots = [(DOCS_ROOT / "knowledge_bases", "*"), (WEB / "src", "*"), (DOCS_ROOT / "docs", "*")]
+    # 外部挂载（EXTERNAL_MOUNTS，如 F: 上的 external-reports）也纳入：否则只在那边加/改文章
+    # 时 staleness 察觉不到 → /api/rebuild 与启动检查都不重建 → 外部更新一直不生效。
+    roots += [(mount, "*") for mount in EXTERNAL_MOUNTS.values()]
     skips = [WEB / "src" / "content", DIST, DIST_NEW, DIST_OLD, WEB / "node_modules"]
     for base, pattern in roots:
         if not base.exists():

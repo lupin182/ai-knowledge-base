@@ -43,7 +43,7 @@ async function discoverKBs() {
 }
 
 // 解析 server/.env 里的 EXTERNAL_MOUNTS（跨盘挂载，例如 external-reports
-// → F:/redacted-mount/.../cluster_sync/reports），把它们也 sync 进来。
+// → F:/onedrive-ex-jason/.../cluster_sync/reports），把它们也 sync 进来。
 async function readExternalMounts() {
   try {
     const envText = await fs.readFile(resolve(KB_ROOT, 'server', '.env'), 'utf-8');
@@ -127,7 +127,7 @@ function resolveUrl(baseDir, rel) {
 //   [text](foo/README.md)     → [text](/kb/<slug>/<dir>/foo/)
 //   [text](/x/y/z.md)         → [text](/x/y/z/)                 （已绝对，仅 .md→/）
 //   [text](../bar.md#hash)    → [text](/kb/<slug>/.../bar/#hash)
-//   [text](foo.png)           保留不动（资产，交给 Astro image pipeline）
+//   ![alt](../viz/x.png)      → ![alt](/<prefix>/viz/x.png)     （资产→绝对 public 路径）
 //
 // 关键：相对链接锚定**源文件所在目录**（baseUrlDir）解析成绝对路径。
 // Astro trailingSlash:'always' 下页面是"目录式 URL"，浏览器按页面目录解析 ../ 会
@@ -158,10 +158,15 @@ function rewriteLinks(text, baseUrlDir) {
     const hashIdx = url.indexOf('#');
     if (hashIdx >= 0) { hash = url.slice(hashIdx); url = url.slice(0, hashIdx); }
     if (/\.md$/i.test(url)) return open + convert(url) + hash + close;
-    // 非 .md：相对的目录/无扩展页面链接（如 ../00-foo/、./bar）也锚定解析成绝对；
-    // 带扩展名的资产（.png/.css/.pdf…）保留相对，交给 Astro / 静态目录处理。
+    // 相对的目录/无扩展页面链接（如 ../00-foo/、./bar）→ 锚定源文件目录解析成绝对。
     if (baseUrlDir && !url.startsWith('/') && (/\/$/.test(url) || !/\.[a-z0-9]+$/i.test(url.replace(/\/$/, '')))) {
       return open + resolveUrl(baseUrlDir, url.endsWith('/') ? url : url + '/') + hash + close;
+    }
+    // 相对资产（图片 .png/.jpg… + .pdf/.csv 等，带扩展名）→ 锚定解析成绝对 public 路径。
+    // 资产都已被拷到 web/public 同路径，绝对引用就走静态——图片因此不进 Astro image pipeline
+    // （避免那条会崩的优化/emit）。
+    if (baseUrlDir && !url.startsWith('/') && /\.[a-z0-9]+$/i.test(url)) {
+      return open + resolveUrl(baseUrlDir, url) + hash + close;
     }
     return open + url + hash + close;
   });
@@ -219,18 +224,16 @@ async function syncOne(srcDir, opts = {}) {
   }
   for (const f of assetFiles) {
     const rel = relative(srcRoot, f);
-    const ext = rel.slice(rel.lastIndexOf('.')).toLowerCase();
-    // PDF / JSON / CSV 等不被 Astro 处理的资产 → public/ 同路径（直接 URL 访问）
-    // 图片（.png .jpg 等）放 content/，Astro image pipeline 才能解析 markdown 里的相对引用
+    // 所有资产（图片 + pdf/json/csv）→ public/ 同路径，按绝对 URL 静态访问。
+    // 图片不再放 content/ 让 Astro 优化：它的图片 emit 管线在外部报告那种大批量图上会崩
+    // （把优化图写进 web/.astro/_astro 又读不回 ENOENT；cacheDir/passthroughImageService/
+    // junction 都救不了，因为崩在写死的 emit 步骤）。当静态图直接 serve。markdown 里的相对
+    // 图片引用由 rewriteLinks 重写成绝对 public 路径，与此一一对应。
     const publicSubDir = opts.dstSubDir || srcDir;
-    const dstRoots = ext === '.pdf' || ext === '.json' || ext === '.csv'
-      ? [resolve(ASTRO_PUBLIC, publicSubDir, rel)]
-      : [resolve(dstRoot, rel)];
-    for (const dst of dstRoots) {
-      const wasNew = !(await fs.stat(dst).catch(() => null));
-      await copyRaw(f, dst);
-      if (wasNew) added++; else updated++;
-    }
+    const dst = resolve(ASTRO_PUBLIC, publicSubDir, rel);
+    const wasNew = !(await fs.stat(dst).catch(() => null));
+    await copyRaw(f, dst);
+    if (wasNew) added++; else updated++;
   }
 
   return { added, updated, deleted: 0 };
