@@ -244,7 +244,8 @@ void topSeg;
 ---
 
 <aside class="sidebar">
-  <input class="search" type="search" placeholder="搜索..." aria-label="搜索" />
+  <input class="search" type="search" placeholder="搜索全站..." aria-label="搜索" autocomplete="off" />
+  <div class="search-results" role="listbox" aria-label="搜索结果" hidden></div>
   <nav>
     {groups.map((g) => (
       <div class="nav-group">

@@ -241,6 +241,23 @@ body {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+/* 全站搜索结果：搜索时就地替换 nav（client.ts 切换 hidden），无浮层不会被 sidebar overflow 裁掉 */
+.sidebar .search-results { display: flex; flex-direction: column; gap: 2px; margin-bottom: 16px; }
+.sidebar .search-results[hidden] { display: none; }
+.sidebar .search-hit {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px 10px; border-radius: var(--r-sm);
+  text-decoration: none; color: var(--fg);
+}
+.sidebar .search-hit:hover,
+.sidebar .search-hit.sel { background: var(--bg-soft); }
+.sidebar .search-hit-title { font-size: 13px; font-weight: 500; line-height: 1.3; }
+.sidebar .search-hit-path {
+  font-size: 11px; color: var(--fg-dim); line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar .search-empty { padding: 10px; font-size: 12.5px; color: var(--fg-muted); }
+
 .nav-group { margin-bottom: 4px; }
 .nav-group-title {
   font-size: 11px;

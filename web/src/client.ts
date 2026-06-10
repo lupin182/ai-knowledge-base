@@ -295,6 +295,131 @@ function hideEditOnAstroOnlyPages() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* 9. 侧栏全站搜索：懒加载构建期 /search-index.json，即时过滤，结果就地替换 nav。   */
+/* -------------------------------------------------------------------------- */
+type SearchEntry = { title: string; url: string; slug: string; text: string };
+let _searchIndex: Promise<SearchEntry[]> | null = null;
+function loadSearchIndex(): Promise<SearchEntry[]> {
+  if (!_searchIndex) {
+    _searchIndex = fetch('/search-index.json')
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []);
+  }
+  return _searchIndex;
+}
+
+function safeDecode(s: string): string {
+  try { return decodeURIComponent(s); } catch { return s; }
+}
+// /kb/chemistry/notes/01-quantum/ → chemistry › notes › 01 quantum
+function searchPathLabel(url: string): string {
+  const segs = url.split('/').filter(Boolean);
+  const start = segs[0] === 'kb' ? 1 : 0;
+  return segs.slice(start).map((s) => safeDecode(s).replace(/[-_]/g, ' ')).join(' › ');
+}
+
+function wireSearch() {
+  const input = document.querySelector('.sidebar .search') as HTMLInputElement | null;
+  const results = document.querySelector('.sidebar .search-results') as HTMLElement | null;
+  const nav = document.querySelector('.sidebar nav') as HTMLElement | null;
+  if (!input || !results || !nav) return;
+
+  let hits: SearchEntry[] = [];
+  let sel = -1;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  function clear() {
+    hits = []; sel = -1;
+    results!.hidden = true;
+    results!.innerHTML = '';
+    nav!.hidden = false;
+  }
+
+  function run(raw: string) {
+    const q = raw.trim().toLowerCase();
+    if (!q) { clear(); return; }
+    loadSearchIndex().then((index) => {
+      if (input!.value.trim().toLowerCase() !== q) return; // 输入已变，丢弃过期结果
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const scored: { e: SearchEntry; score: number }[] = [];
+      for (const e of index) {
+        const title = (e.title || '').toLowerCase();
+        const text = (e.text || '').toLowerCase();
+        let score = 0, ok = true;
+        for (const tk of tokens) {
+          const inTitle = title.includes(tk);
+          if (!inTitle && !text.includes(tk)) { ok = false; break; }
+          score += inTitle ? 10 : 1;
+        }
+        if (!ok) continue;
+        if (title.includes(q)) score += 50;          // 标题整串命中最优先
+        if (title.startsWith(tokens[0])) score += 5;
+        scored.push({ e, score });
+      }
+      scored.sort((a, b) => b.score - a.score || (a.e.title || '').length - (b.e.title || '').length);
+      hits = scored.slice(0, 40).map((s) => s.e);
+      render(raw.trim());
+    });
+  }
+
+  function render(q: string) {
+    sel = -1;
+    nav!.hidden = true;
+    results!.hidden = false;
+    results!.innerHTML = '';
+    if (!hits.length) {
+      const empty = document.createElement('div');
+      empty.className = 'search-empty';
+      empty.textContent = '没有匹配「' + q + '」的结果';
+      results!.appendChild(empty);
+      return;
+    }
+    hits.forEach((e, i) => {
+      const a = document.createElement('a');
+      a.className = 'search-hit';
+      a.href = e.url;
+      a.setAttribute('role', 'option');
+      a.dataset.idx = String(i);
+      const t = document.createElement('span');
+      t.className = 'search-hit-title';
+      t.textContent = e.title || e.url;
+      const p = document.createElement('span');
+      p.className = 'search-hit-path';
+      p.textContent = searchPathLabel(e.url);
+      a.appendChild(t);
+      a.appendChild(p);
+      results!.appendChild(a);
+    });
+  }
+
+  function move(delta: number) {
+    const els = Array.from(results!.querySelectorAll('.search-hit')) as HTMLElement[];
+    if (!els.length) return;
+    sel = (sel + delta + els.length) % els.length;
+    els.forEach((h, i) => h.classList.toggle('sel', i === sel));
+    els[sel].scrollIntoView({ block: 'nearest' });
+  }
+
+  // 首次聚焦就预取索引，消除第一次敲键的等待。
+  input.addEventListener('focus', () => { loadSearchIndex(); }, { once: true });
+  input.addEventListener('input', () => {
+    const v = input.value;
+    clearTimeout(timer);
+    timer = setTimeout(() => run(v), 120);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+    else if (e.key === 'Enter') {
+      const els = results!.querySelectorAll('.search-hit') as NodeListOf<HTMLAnchorElement>;
+      if (els.length) { e.preventDefault(); els[sel >= 0 ? sel : 0].click(); }
+    } else if (e.key === 'Escape') {
+      input.value = ''; clear(); input.blur();
+    }
+  });
+}
+
 function boot() {
   wireModeButton();
   wireProgressBar();
@@ -303,6 +428,7 @@ function boot() {
   wireTocScroll();
   wireCopyButtons();
   wireSidebar();
+  wireSearch();
   wirePdfEmbeds();
   hideEditOnAstroOnlyPages();
 }
