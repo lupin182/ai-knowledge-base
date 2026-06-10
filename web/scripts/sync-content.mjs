@@ -212,6 +212,34 @@ async function copyRaw(src, dst) {
   await fs.copyFile(src, dst);
 }
 
+// one-way mirror 的"删"半边：清掉 root 子树里这次没写到（keep 集合外）的孤儿文件，
+// 并回收空目录。只在每个 KB / 外部挂载各自的目标子树内操作（content/docs/kb/<slug>
+// 与 public/kb/<slug>，都是 gitignore 的可再生构建产物），删错也能 rebuild，安全。
+// 解决：删除/改名源文件后，旧页面旧图片会永久残留在 dist 里继续对外发布。
+async function pruneOrphans(root, keep) {
+  let deleted = 0;
+  async function recurse(d) {
+    let names;
+    try { names = await fs.readdir(d); }
+    catch { return; }
+    for (const name of names) {
+      const full = resolve(d, name);
+      // 同 walk()：OneDrive 云端化目录是 ReparsePoint，Dirent.isDirectory 不准，用 stat。
+      let st;
+      try { st = await fs.stat(full); } catch { continue; }
+      if (st.isDirectory()) {
+        await recurse(full);
+        // 子项删空后回收空目录（rmdir 只在真空时成功）。
+        try { await fs.rmdir(full); } catch {}
+      } else if (st.isFile() && !keep.has(full)) {
+        try { await fs.rm(full); deleted++; } catch {}
+      }
+    }
+  }
+  await recurse(root);
+  return deleted;
+}
+
 async function syncOne(srcDir, opts = {}) {
   // opts.absSrc：直接给一个绝对路径作为源（EXTERNAL_MOUNTS 用），否则相对 KB_ROOT
   // opts.dstSubDir：覆盖目标子路径（multi-KB 用 'kb/<slug>'），否则等于 srcDir
@@ -223,6 +251,9 @@ async function syncOne(srcDir, opts = {}) {
   const { md: mdFiles, asset: assetFiles } = await walk(srcRoot);
   // URL 前缀：KB 是 'kb/<slug>'，外部挂载是 prefix（如 'external-reports'）。
   const urlRoot = opts.dstSubDir || srcDir;
+  // 这次实际写出的目标文件绝对路径集合 → 之后据此删孤儿（源端已不存在的旧产物）。
+  const keepContent = new Set();
+  const keepAsset = new Set();
   let added = 0, updated = 0;
   for (const f of mdFiles) {
     let rel = relative(srcRoot, f);
@@ -238,6 +269,7 @@ async function syncOne(srcDir, opts = {}) {
     const dst = resolve(dstRoot, rel);
     const wasNew = !(await fs.stat(dst).catch(() => null));
     await copy(f, dst, baseUrlDir);  // strips frontmatter + 相对链接→绝对
+    keepContent.add(dst);
     if (wasNew) added++; else updated++;
   }
   for (const f of assetFiles) {
@@ -251,10 +283,17 @@ async function syncOne(srcDir, opts = {}) {
     const dst = resolve(ASTRO_PUBLIC, publicSubDir, rel);
     const wasNew = !(await fs.stat(dst).catch(() => null));
     await copyRaw(f, dst);
+    keepAsset.add(dst);
     if (wasNew) added++; else updated++;
   }
 
-  return { added, updated, deleted: 0 };
+  // 删孤儿：源端已删/改名的 .md 旧页面（content 侧）和旧资产（public 侧）不能继续残留发布。
+  const publicRoot = resolve(ASTRO_PUBLIC, opts.dstSubDir || srcDir);
+  const deleted =
+    (await pruneOrphans(dstRoot, keepContent)) +
+    (await pruneOrphans(publicRoot, keepAsset));
+
+  return { added, updated, deleted };
 }
 
 // 框架资源（docs/{js,css,vendor,tools} 来自 kb-core，由 sync_core.py 同步到 KB 根的 docs/；

@@ -17,8 +17,8 @@ const VIEWPORT = { width: 1440, height: 900 };
 const TARGETS = [
   { name: 'demo-home',    url: 'http://localhost:8001/docs/preview/',  isDemo: true  },
   { name: 'astro-home',   url: 'http://localhost:4321/',               isDemo: false },
-  { name: 'astro-topic',  url: 'http://localhost:4321/topics/redacted-topic/', isDemo: false },
-  { name: 'astro-paper',  url: 'http://localhost:4321/topics/redacted-topic/artgs/', isDemo: false },
+  { name: 'astro-topic',  url: 'http://localhost:4321/topics/example-dt/', isDemo: false },
+  { name: 'astro-paper',  url: 'http://localhost:4321/topics/example-dt/artgs/', isDemo: false },
 ];
 
 async function captureOne(browser, target, mode) {

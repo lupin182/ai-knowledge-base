@@ -159,5 +159,13 @@ class Backend(Protocol):
 ## 部署给别人用
 
 1. 设访问密码：设置页底部填密码 → 保存。本机访问仍直通，外网访问会跳登录页。
-2. 反向代理（nginx 等）走 8000 端口即可，**不要**把 `/server/`、`/knowledge_bases/`、`/_trash/`、`/_backup/` 暴露给外网（中间件已经拦了，但反向代理层也建议加白名单）。
+2. **反向代理必读（安全）**：后端用 `request.client.host == 127.0.0.1` 判定"本机直通免密"。
+   同机反代（nginx/caddy 把外部请求转发到 loopback）会让**每个外部访客的 peer IP 都变成 127.0.0.1**，
+   若不处理就等于**绕过密码、且能远程改 `cli_path` → 任意命令执行（RCE）**。二选一（建议都做）：
+   - **设环境变量 `KB_BEHIND_PROXY=1` 再启动**（`KB_BEHIND_PROXY=1 python run.py`）：声明"我在反代后面"，
+     后端不再信任 peer IP，外网一律走密码；本机配置高危设置时直连 uvicorn 端口（绕过反代）即可。
+   - **在反代转发真实客户端 IP**：nginx 加 `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`
+     （uvicorn 默认 `forwarded_allow_ips=127.0.0.1` 会据此还原真实 IP，免密判定就会正确放行/拦截）。
+   - 另外**别把 `/server/`、`/knowledge_bases/`、`/_trash/`、`/_backup/` 暴露给外网**（中间件已拦，反代层再加白名单更稳）；
+     对外务必上 HTTPS（鉴权 cookie 在 HTTPS 下才带 Secure）。
 3. 不要把 `server/.settings.json` 和 `server/.auth_secret` 推到 git（已在 `.gitignore`）。

@@ -11,7 +11,7 @@ await page.setViewport({ width: 1440, height: 900 });
 console.log('→ Home');
 await page.goto('http://localhost:4321/', { waitUntil: 'networkidle0', timeout: 30000 });
 await new Promise(r => setTimeout(r, 800));
-// click Interactive DT group title to expand
+// click example group group title to expand
 const collapsedBefore = await page.evaluate(() => document.querySelectorAll('.kb-nav .node.expanded').length);
 await page.click('.kb-nav .node[data-depth="0"][data-bold] .group-title');
 await new Promise(r => setTimeout(r, 200));
@@ -34,7 +34,7 @@ const editOpen = await page.evaluate(() => document.getElementById('editor-panel
 console.log('  editor panel open:', editOpen);
 // navigate to a paper card
 console.log('→ Paper card (ArtGS)');
-await page.goto('http://localhost:4321/kb/redacted-topic/wiki/papers/artgs/', { waitUntil: 'networkidle0', timeout: 30000 });
+await page.goto('http://localhost:4321/kb/example-dt/wiki/papers/artgs/', { waitUntil: 'networkidle0', timeout: 30000 });
 await new Promise(r => setTimeout(r, 800));
 const sidebarActive = await page.evaluate(() => document.querySelector('.kb-nav a.active')?.textContent);
 console.log('  active sidebar item:', sidebarActive);

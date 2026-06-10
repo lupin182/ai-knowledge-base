@@ -27,9 +27,14 @@ export async function getStaticPaths() {
 const { entry } = Astro.props;
 const { Content } = await render(entry);
 
-// 标题：第一行 # 标题 / frontmatter / 文件名
+// 标题：frontmatter title → 正文首个 # 标题 → 文件名。
+// frontmatter 在 sync-content.mjs 同步时已被 stripFrontmatter 剥掉，到不了 entry.data，
+// 所以必须直接读正文 body 的 # 标题；否则目录 landing 页（entry.id 以 /index 结尾，
+// 文件名退化成字面 "index"）的 <title> 会全部变成无区分度的 "index"。
 const fileTitle = entry.id.split('/').pop()?.replace(/[-_]/g, ' ');
-const title = (entry.data as any).title || fileTitle;
+// 首个 ATX 标题（任意级别 # ~ ######）。很多 README 以 ## 开头，只认单 # 会漏判退化成 "index"。
+const bodyTitle = ((entry as any).body || '').match(/^#{1,6}\s+(.+)$/m)?.[1]?.replace(/[#*`]/g, '').trim();
+const title = (entry.data as any).title || bodyTitle || fileTitle;
 
 // breadcrumb
 const isIndex = entry.id === 'index' || entry.id.endsWith('/index');
@@ -48,9 +53,12 @@ for (const e of _allDocs) {
 // 路由前缀段 'kb'（/kb/<slug>/... 里的 kb）不是可导航页面，从面包屑里跳过；
 // 但 href 仍用完整路径构造（首个真实 crumb = KB slug → /kb/<slug>/）。
 const skip = parts[0] === 'kb' ? 1 : 0;
+// 路径段含字面 '%' 后跟非十六进制时 decodeURIComponent 会抛 URIError → 整页构建失败。
+// 包一层回退，绝不让一个文件名拖垮整个 astro build。
+const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
 const crumbs = parts.slice(0, -1).map((p, i) => {
   const href = '/' + parts.slice(0, i + 1).join('/') + '/';
-  return { label: decodeURIComponent(p), href, exists: existingUrls.has(href) };
+  return { label: safeDecode(p), href, exists: existingUrls.has(href) };
 }).slice(skip);
 const lastCrumb = parts[parts.length - 1] || '总览';
 ---

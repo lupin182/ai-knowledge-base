@@ -48,7 +48,12 @@ function detectKbSlug(pathname: string): string | null {
 function normalizeHref(href: string): string {
   if (!href) return href;
   if (href.startsWith('http')) return href;
-  let h = href;
+  // 先拆掉 #锚点，重写完再接回。否则 foo.md#sec 的 ".md" 不在结尾，下面的规则漏判，
+  // 会留下指向不存在的 .md 路由的死链（与 sync-content.mjs 对正文链接的处理保持一致）。
+  const hashIdx = href.indexOf('#');
+  const hash = hashIdx >= 0 ? href.slice(hashIdx) : '';
+  let h = hashIdx >= 0 ? href.slice(0, hashIdx) : href;
+  if (!h) return href; // 纯锚点（#sec）原样返回
   if (/(\/|^)README\.md$/i.test(h)) {
     h = h.replace(/(\/|^)README\.md$/i, (_, sep) => sep || '');
     if (!h) h = './'; // 裸 README.md（无路径分隔）→ 当前目录，不要变空串/根
@@ -57,7 +62,7 @@ function normalizeHref(href: string): string {
     h = h.replace(/\.md$/i, '/');
   }
   if (!h) h = '/';
-  return h;
+  return h + hash;
 }
 
 function parseSidebar(text: string): Node[] {
@@ -138,7 +143,8 @@ function entryTitle(id: string): string {
   const e = docById.get(id);
   if (e) {
     if ((e.data as any)?.title) return (e.data as any).title;
-    const m = ((e as any).body || '').match(/^#\s+(.+)$/m);
+    // 首个 ATX 标题（任意级别 # ~ ######）。很多 README 以 ## 开头，只认单 # 会漏判退化成文件名。
+    const m = ((e as any).body || '').match(/^#{1,6}\s+(.+)$/m);
     if (m) return m[1].replace(/[#*`]/g, '').trim();
   }
   const seg = id.replace(/\/index$/, '').split('/').pop() || id;
@@ -194,7 +200,11 @@ function kbNavOf(s: string): Node[] {
   return kbSidebars[s] ? extractKbNav(kbSidebars[s]) : buildExtTree('kb/' + s);
 }
 
-const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+// Astro.url.pathname 对非 ASCII（中文文件名）一律 percent-encode，而 _sidebar.md 解析出的
+// href / 自动建树的 href 都是原始中文串，直接字符串比较永不相等 → 中文页的侧栏当前页高亮 +
+// 当前分支自动展开全部失效。解码回原始字符再比较；malformed %xx 回退原串避免 URIError。
+const decodePath = (p: string) => { try { return decodeURIComponent(p); } catch { return p; } };
+const currentPath = decodePath(Astro.url.pathname).replace(/\/$/, '') || '/';
 const slug = detectKbSlug(currentPath);
 const kbList = discoverKbList();
 const labelOf = (s: string) => kbList.find((k) => k.slug === s)?.label || s;
@@ -254,7 +264,7 @@ void topSeg;
   .sidebar .nav-list { list-style: none; margin: 0; padding: 0; }
   .sidebar .nav-item { position: relative; }
 
-  /* 可折叠的组小标题（如「论文卡片」「A. 铰接」）——整行可点 */
+  /* 可折叠的组小标题（如「论文卡片」「A. 分组」）——整行可点 */
   .sidebar .nav-subtitle {
     display: flex;
     align-items: center;

@@ -130,6 +130,11 @@ def main():
             print(f"  LAN:     http://{ip}:{args.port}/   (手机同 WiFi 可访问)")
     else:
         print("  (仅本机，不暴露到局域网；要对外访问加 --host 0.0.0.0)")
+        # 反代部署提示：同机 nginx 转发到 loopback 会让外部访客 peer IP 变 127.0.0.1，
+        # 不处理就等于免密 + 可远程 RCE。详见 INSTALL.md「部署给别人用」。
+        if os.environ.get("KB_BEHIND_PROXY", "").strip().lower() not in ("1", "true", "yes", "on"):
+            print("  [反代提醒] 若前面有 nginx/caddy 反向代理对外暴露：请设 KB_BEHIND_PROXY=1 "
+                  "或在代理层转发 X-Forwarded-For，否则外部访客会被当本机免密直通（详见 INSTALL.md）。")
     print("Press Ctrl+C to stop")
 
     uvicorn.run(

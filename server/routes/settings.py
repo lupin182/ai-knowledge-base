@@ -12,7 +12,14 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
-from server.auth import _make_token, hash_password, is_hash, verify_password
+from server.auth import (
+    _make_token,
+    hash_password,
+    is_hash,
+    is_local_request,
+    is_secure_request,
+    verify_password,
+)
 from server.services import settings_service
 
 router = APIRouter()
@@ -70,7 +77,10 @@ async def update_settings(payload: SettingsPayload, request: Request):
     # 高危字段只允许本机改：cli_path（后端会直接 Popen 它 → 任意可执行文件 = RCE）、
     # ai_full_access（放开 Bash）。远程请求（即便已用密码登录）一律保留旧值，
     # 杜绝"知道密码就能远程提权到在你机器上执行命令"。
-    is_local = bool(request.client and request.client.host in ("127.0.0.1", "::1"))
+    # 与中间件同一套本机判定（含 KB_BEHIND_PROXY 代理感知）：反代部署下远程请求
+    # 不会被误判为本机，杜绝"知道密码（或在反代漏转发 XFF 时连密码都不用）就能远程
+    # 改 cli_path → Popen → RCE"。
+    is_local = is_local_request(request)
     if not is_local:
         old_cli = (current.get("claude_cli") or {}).get("cli_path", "")
         old_full = bool((current.get("chat_defaults") or {}).get("ai_full_access", False))
@@ -119,7 +129,7 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-async def login(req: LoginRequest):
+async def login(req: LoginRequest, request: Request):
     if verify_password(req.password):
         # token 派生材料 = 当前哈希字符串本身
         token = _make_token(settings_service.access_password_hash())
@@ -130,6 +140,9 @@ async def login(req: LoginRequest):
             httponly=True,
             samesite="lax",
             path="/",
+            # HTTPS 下带 Secure，避免 30 天长效 token 在明文链路被嗅探；
+            # 本机明文 HTTP 自用时不带（否则浏览器不回传 cookie）。
+            secure=is_secure_request(request),
         )
         return resp
     return JSONResponse({"ok": False}, status_code=403)

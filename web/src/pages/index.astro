@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import { getCollection } from 'astro:content';
 import { execSync } from 'node:child_process';
 import { resolve } from 'node:path';
+import fs from 'node:fs';
 
 // 站名 / tagline 取自各 KB 自己的 root README.md（不写死，框架通用）。
 const _rootReadmeMods = import.meta.glob('../../../README.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -16,7 +17,11 @@ const siteTagline: string =
 const REPO = resolve(process.cwd(), '..');
 function git(args: string): string {
   try {
-    return execSync('git ' + args, { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    // -c core.quotepath=false：让 git 原样输出非 ASCII 路径。否则中文文件名会被转成带引号
+    // 的八进制转义（"knowledge_bases/.../\350\267...md"），下面按 .md / knowledge_bases/
+    // 前后缀判断的解析对这些行 startsWith/endsWith 全部失败而整行跳过，「最近更新」就会
+    // 永久漏掉所有中文文件名的文档更新。
+    return execSync('git -c core.quotepath=false ' + args, { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   } catch {
     return '';
   }
@@ -54,21 +59,14 @@ const stats = [
   { num: String(ideaCount), label: '活跃 idea' },
 ];
 
-// 专题卡（KB 列表 + 真实篇数 + 最近更新时间）
-const KBS = [
-  { slug: 'redacted-project', name: '💉 Surgical VQLA Agent', meta: '主攻方向', unit: '篇',
-    desc: '训练自由的外科 VQLA agent，think-with-image。CVPR 2027 目标。论文卡 + 项目追踪 + 每周汇报。' },
-  { slug: 'redacted-topic', name: '🌐 Interactive DT', meta: '独立专题', unit: '篇',
-    desc: '铰接 / 物理属性 / 场景级三大派系。覆盖 ICLR/CVPR/NeurIPS 2024-2026 种子论文 + 派系划分 + 开放问题。' },
-  { slug: 'research-notes', name: '💡 Idea Research', meta: '多个 idea 并行', unit: '篇',
-    desc: '早期想法工作区 · hier-affordance-seg / redacted-idea · 通用方法文档（paper-critical-reading 等）。' },
-  { slug: 'methodology', name: '🔬 科研方法论', meta: '方法论实践', unit: '篇',
-    desc: '从 Evaluate Idea 到 Propose Idea —— 怎么挑、怎么调研、怎么反驳自己。' },
-  { slug: 'applications', name: '📝 申请规划', meta: '个人路径', unit: '篇',
-    desc: '博士申请路径、PI 对接、方向决策快照。' },
-  { slug: 'chemistry', name: '🧪 普通化学（2026 春）', meta: '课程笔记', unit: '章',
-    desc: '从量子力学到分子轨道再到配位化合物 —— 零基础白话讲解，期中专题。' },
-];
+// 专题卡的「定制层」（图标 / 标题 / 简介 / 顺序）。**不写死在共享框架里**——否则会把某个库的
+// 私有项目描述同步进所有库（含公开库）。改为各 KB 自管：放在本仓库的 web/public/kb-cards.json
+// （不在 sync_core 的 SYNC_PATHS 内，各库独有）。缺省 = 空 = 全部走下面的自动发现（按 README）。
+let KBS: Array<{ slug: string; name: string; meta: string; unit: string; desc: string }> = [];
+try {
+  const _cardsPath = resolve(process.cwd(), 'public', 'kb-cards.json');
+  if (fs.existsSync(_cardsPath)) KBS = JSON.parse(fs.readFileSync(_cardsPath, 'utf8'));
+} catch { KBS = []; }
 
 // 自动发现：knowledge_bases/ 下未在上面 KBS 里列出的 KB → 自动补成卡片
 //（标题取 README 的 # 标题，简介取 README 首段；上面 6 个是定制覆盖，settings 新建的 KB 走这里）。
@@ -126,7 +124,8 @@ function titleOf(id: string): string {
   const e = byId.get(id);
   if (e) {
     if ((e.data as any)?.title) return (e.data as any).title;
-    const m = ((e as any).body || '').match(/^#\s+(.+)$/m);
+    // 首个 ATX 标题（任意级别 # ~ ######）。很多 README 以 ## 开头，只认单 # 会漏判退化成文件名。
+    const m = ((e as any).body || '').match(/^#{1,6}\s+(.+)$/m);
     if (m) return m[1].replace(/[#*`]/g, '').trim();
   }
   const seg = id.replace(/\/index$/, '').split('/').pop() || id;

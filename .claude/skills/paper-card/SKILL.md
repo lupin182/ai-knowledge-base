@@ -1,11 +1,11 @@
 ---
 name: paper-card
-description: Build a comprehensive Chinese paper card under research-notes/ideas/<slug>/wiki/papers/<paper>.md — one card that lets reader fully understand the paper in a single read without reopening the PDF. Covers TL;DR + 背景与任务 + 方法概览 + 方法细节（含公式直觉） + 实现 + 关键结果（表 + 解读）+ 关联工作 + 与本课题的关系. Faithful prose explanation with original symbols preserved. **No critical analysis, no judgment, no gap-finding, no author affiliations, no future plans**. Critical reading happens in AI Assistant chats, not in the card. Embeds PDF reader iframe at top. Triggered by "论文卡片", "paper card", "写一张卡片", "新增论文卡片", or direct invocation.
+description: Build a comprehensive Chinese paper card under research-workspace/ideas/<slug>/wiki/papers/<paper>.md — one card that lets reader fully understand the paper in a single read without reopening the PDF. Covers TL;DR + 背景与任务 + 方法概览 + 方法细节（含公式直觉） + 实现 + 关键结果（表 + 解读）+ 关联工作 + 与本课题的关系. Faithful prose explanation with original symbols preserved. **No critical analysis, no judgment, no gap-finding, no author affiliations, no future plans**. Critical reading happens in AI Assistant chats, not in the card. Embeds PDF reader iframe at top. Triggered by "论文卡片", "paper card", "写一张卡片", "新增论文卡片", or direct invocation.
 ---
 
 # Paper Card Skill
 
-为 `research-notes/ideas/<slug>/wiki/papers/<paper>.md` 产出**全面理解式中文笔记** —— 读者读完这一张卡片就能完整理解论文的"问题来源 / 方法主干 / 实现选择 / 结果数字"，**不需要再回原文**（除非要核对某个具体公式或表格细节）。
+为 `research-workspace/ideas/<slug>/wiki/papers/<paper>.md` 产出**全面理解式中文笔记** —— 读者读完这一张卡片就能完整理解论文的"问题来源 / 方法主干 / 实现选择 / 结果数字"，**不需要再回原文**（除非要核对某个具体公式或表格细节）。
 
 **和 AI Assistant 对话的分工**：本卡片只承担"沉淀理解 + 事实记录"。批判分析（作者声称 vs 真实成立、未明说的局限、对本课题的研究缺口）由用户和 AI Assistant 在卡片基础上对话挖掘，**不写进卡片**。
 
@@ -48,11 +48,11 @@ updated: <YYYY-MM-DD>
 # <slug>
 
 > 📄 **原始论文**：[arXiv <id>](https://arxiv.org/abs/<id>) · **发表场所**：<同 frontmatter venue> · 代码：[github.com/...](https://github.com/...) 或写"原文声明 'will be released'，目前未释出"
-> 📖 **内嵌阅读**：在下方阅读器中**选中段落**，右下角会弹出 "Ask AI" 按钮，可把段落喂给右侧 AI 助手追问（AI 已加载本文全文为上下文）。如需全屏请 <a href="/docs/tools/pdf-reader.html?pdf=research-notes/ideas/<slug>/papers/<paper>.pdf&title=<ShortName>" target="_blank">在新标签打开</a>。
+> 📖 **内嵌阅读**：在下方阅读器中**选中段落**，右下角会弹出 "Ask AI" 按钮，可把段落喂给右侧 AI 助手追问（AI 已加载本文全文为上下文）。如需全屏请 <a href="/docs/tools/pdf-reader.html?pdf=research-workspace/ideas/<slug>/papers/<paper>.pdf&title=<ShortName>" target="_blank">在新标签打开</a>。
 
 <iframe
   class="pdf-embed"
-  src="/docs/tools/pdf-reader.html?pdf=research-notes/ideas/<slug>/papers/<paper>.pdf&title=<ShortName>&embed=1"
+  src="/docs/tools/pdf-reader.html?pdf=research-workspace/ideas/<slug>/papers/<paper>.pdf&title=<ShortName>&embed=1"
   loading="lazy"
   title="<ShortName> PDF 内嵌阅读器"></iframe>
 
@@ -188,7 +188,7 @@ $$
 `[[wiki-link]]` 互引同 KB 内已有的卡片，**不要写未建卡的论文**（避免坏链）。其它论文用纯文本 + 引用号即可。
 
 ```markdown
-- **同任务 SOTA 链**：[[redacted-project]] (ICRA 2023) / [[redacted-project-plus-plus]] / [[surgical-mamballm]]
+- **同任务 SOTA 链**：[[example-vqla]] (ICRA 2023) / [[example-vqla-plus-plus]] / [[surgical-mamballm]]
 - **同任务但 KB 未建卡**：Surgical-LVLM / LISA / GLAMM（论文 §2 引用）
 - **方法引用**：SPHINX 架构 / GRPO / DeepSeek-R1
 ```
@@ -239,7 +239,7 @@ $$
 ## 工作流
 
 1. 用户给 `<slug>` 项目名 + 论文 arxiv id / IEEE doc id / PDF 路径。
-2. 检查 `research-notes/ideas/<slug>/raw/<paper>.md` 是否存在：
+2. 检查 `research-workspace/ideas/<slug>/raw/<paper>.md` 是否存在：
    - 存在：直接读
    - 不存在：`curl -L -s -o papers/<paper>.pdf "https://arxiv.org/pdf/<id>"` + `pdftotext -layout papers/<paper>.pdf raw/<paper>.md`
 3. 跑 venue 校验：WebFetch arxiv abs 页或 Semantic Scholar API 确认 venue + 年份 + 卷号 / 期号 / 文章号。若 preprint 状态，明确写"截至 <today> 无正式接收信息"。
@@ -280,4 +280,4 @@ $$
 ## 与其他 skill 的协作
 
 - **AI Assistant 对话（不是 skill）**：承接"声称 vs 真实成立 vs 未明说"的批判分析、"对本课题留下什么缺口" 的研究定位。用户读完卡后跟右侧 AI 抽屉对话来做深度挖掘，**产出不沉淀到 paper card**，可以另存 `wiki/gaps/<topic>.md` 或留在对话里。
-- **research-notes-skill**：本 skill 产出的卡片是 research-notes Phase 2 (Compile Wiki) 的标准件。
+- **research-workspace-skill**：本 skill 产出的卡片是 research-workspace Phase 2 (Compile Wiki) 的标准件。

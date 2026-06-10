@@ -47,7 +47,10 @@ web/dist_old/
 web/.vite/
 web/src/content/docs/
 web/public/docs/
-web/public/knowledge_bases/
+# KB 资产输出目录（sync-content.mjs dstSubDir = 'kb/<slug>'）。2026-05-29 改 /kb/ 前缀后
+# 从旧的 web/public/knowledge_bases/ 改名而来——漏改这行会让构建产物图片处于 untracked，
+# 一次 git add -A 就把可再生二进制提交入库。
+web/public/kb/
 web/public/external-reports/
 web/screenshots/
 

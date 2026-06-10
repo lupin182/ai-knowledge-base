@@ -43,6 +43,15 @@ _SECRET = _load_or_create_secret()
 
 _LOCAL_IPS = frozenset({"127.0.0.1", "::1"})
 
+# 反向代理部署声明（修复鉴权绕过 + RCE）：同机 nginx/caddy 把外部请求转发到 loopback，
+# request.client.host 恒为 127.0.0.1，无法据此判定"本机用户"。一旦置此环境变量，
+# _is_local 一律返回 False —— 外部访客照常走密码/token，高危设置（cli_path /
+# ai_full_access / external_mounts）也不再把远程请求误判为本机。直连部署（默认、本机
+# 自用、--host 0.0.0.0 直暴）peer IP 真实可信，行为完全不变。
+# 反代部署务必：① 设 KB_BEHIND_PROXY=1，或 ② 在代理层转发 X-Forwarded-For
+# （uvicorn 默认 forwarded_allow_ips=127.0.0.1 会据此还原真实客户端 IP）。两者都做最稳。
+_BEHIND_PROXY = os.environ.get("KB_BEHIND_PROXY", "").strip().lower() in ("1", "true", "yes", "on")
+
 # ── 路径安全 ──
 _BLOCKED_PREFIXES = (
     "/server/", "/.claude/", "/.git/", "/.github/", "/.env",
@@ -196,10 +205,30 @@ def _check_rate(store: dict, ip: str, window: int, limit: int) -> bool:
 
 
 def _is_local(request: Request) -> bool:
+    # 反代部署：peer IP 不可信 → 一律不放行（见 _BEHIND_PROXY 注释）。
+    if _BEHIND_PROXY:
+        return False
     client = request.client
     if not client:
         return False
     return client.host in _LOCAL_IPS
+
+
+def is_local_request(request: Request) -> bool:
+    """供路由层复用的本机判定：是否把该请求当"可信本机"
+    （决定免密放行 + 能否改 cli_path/ai_full_access/external_mounts 等高危设置）。
+    与中间件用同一套逻辑，避免两处独立信任 client.host 而口径不一。"""
+    return _is_local(request)
+
+
+def is_secure_request(request: Request) -> bool:
+    """请求是否经由 HTTPS 到达（直连 https 或反代用 X-Forwarded-Proto 标记）。
+    用于决定鉴权 cookie 是否带 Secure 标志：明文 HTTP（本机自用）下不能带，
+    否则浏览器不回传 cookie；TLS 下必须带，避免长效 token 明文裸奔。"""
+    if request.url.scheme == "https":
+        return True
+    xfp = request.headers.get("x-forwarded-proto", "")
+    return xfp.split(",")[0].strip().lower() == "https"
 
 
 LOGIN_PAGE = """<!DOCTYPE html>

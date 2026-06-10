@@ -1,7 +1,7 @@
 // Content collection 配置：把 KB 的 markdown 拉进 Astro 内容层。
 //
 // 数据流：
-//   原始 markdown 在 KB 根（../research-notes/、../普通化学/、../科研方法论/ 等）
+//   原始 markdown 在 KB 根（../research-workspace/、../普通化学/、../科研方法论/ 等）
 //   ← scripts/sync-content.mjs 复制到 web/src/content/docs/...
 //   ← Astro 内容集合 loader 读取
 //   ← pages/[...slug].astro 渲染
