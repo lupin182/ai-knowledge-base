@@ -14,7 +14,16 @@ class FreshStaticFiles(StaticFiles):
 
     async def get_response(self, path, scope):
         resp = await super().get_response(path, scope)
-        if path.endswith((".html", ".js", ".css", ".mjs")) or path.endswith("/"):
+        # 注意：Astro trailingSlash:'always' 下页面是目录式 URL（/foo/），Starlette 会把
+        # path 规范化成 'foo'（去掉尾斜杠、无 .html 扩展），靠扩展名/斜杠判断会漏掉目录页 HTML，
+        # 导致页面被浏览器启发式长缓存（更新内容/侧栏看不到）。改为同时看响应 Content-Type。
+        ct = resp.headers.get("content-type", "")
+        if (
+            path.endswith((".html", ".js", ".css", ".mjs"))
+            or path.endswith("/")
+            or ct.startswith(("text/html", "text/css"))
+            or "javascript" in ct
+        ):
             resp.headers["Cache-Control"] = "no-cache"
         return resp
 
