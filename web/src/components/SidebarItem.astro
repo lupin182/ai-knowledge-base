@@ -21,6 +21,8 @@ const { node, depth, currentPath } = Astro.props as Props;
 
 const norm = (h?: string) => (h ? (h.replace(/\/$/, '') || '/') : '');
 const active = !!(node.href && norm(node.href) === currentPath);
+// 外链（友链 / 个人工具）在新标签打开，且不参与当前页高亮。
+const external = !!(node.href && /^https?:\/\//i.test(node.href));
 
 function hasActiveDesc(n: Node): boolean {
   if (!n.children) return false;
@@ -56,6 +58,8 @@ const pad = 10 + depth * 12;
       href={node.href || '#'}
       class:list={[{ active }]}
       style={`padding-left:${pad}px`}
-    >{node.label}</a>
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
+    >{node.label}{external ? ' ↗' : ''}</a>
   </li>
 )}

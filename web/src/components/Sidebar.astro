@@ -121,6 +121,18 @@ function parseKbList(): { slug: string; label: string; href: string }[] {
   return out;
 }
 
+// 根 _sidebar.md 里「知识库列表」之外的自定义入口分组（个人工具 / 友链 / 外链 / 链接）：
+// 原样渲染成侧栏分组，链接可站内可外链（normalizeHref 对 http(s) 透传，SidebarItem 外链开新标签）。
+// 各库自管——根 _sidebar.md 不跨库同步，没有这类分组的库就不显示。
+function parseLinkGroups(): { title: string; items: Node[] }[] {
+  const tree = parseSidebar(rootSidebarMd);
+  return tree
+    .filter((n) => !!(n.children && n.children.length)
+      && /工具|友链|外链|链接/.test(n.label)
+      && !/知识库列表|切换知识库/.test(n.label))
+    .map((n) => ({ title: n.label, items: (n.children || []).filter((c) => c.href || (c.children && c.children.length)) }));
+}
+
 // 剥掉 KB _sidebar.md 的样板（指向 / 的「KB 总览」链接 + 「切换知识库」分组），
 // 并把唯一的「<KB> 专题」外壳分组解开一层，直接返回其内部导航。
 function extractKbNav(text: string): Node[] {
@@ -240,6 +252,8 @@ if (!slug) {
     if (items.length) groups.push({ title: prefix, items });
   }
 }
+// 个人工具 / 友链等自定义入口：追加到侧栏末尾，所有页面可见，方便直接索引到外部工具。
+for (const g of parseLinkGroups()) groups.push(g);
 void topSeg;
 ---
 
