@@ -311,6 +311,14 @@ body {
 .crumbs a:hover { color: var(--accent); }
 .crumbs .sep { margin: 0 8px; opacity: 0.5; }
 
+/* 文章创建/更新时间（取自 git 历史）—— 面包屑下方一行淡色元信息 */
+.doc-dates {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin: -8px 0 24px;
+}
+.doc-dates .sep { margin: 0 8px; opacity: 0.5; }
+
 .article {
   max-width: var(--content-max);
 }

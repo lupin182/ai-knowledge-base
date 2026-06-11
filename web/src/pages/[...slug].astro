@@ -1,8 +1,40 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import { execSync } from 'node:child_process';
+import { resolve } from 'node:path';
 
 export async function getStaticPaths() {
+  // 注意：getStaticPaths 在独立作用域执行，只能访问 import，不能引用 frontmatter 顶层定义，
+  // 所以 git 时间相关 helper 全部定义在函数内部。
+  // 文章创建/更新时间取自 git 历史（首次提交 = 创建，最近提交 = 更新）——比文件 mtime 可靠
+  // （OneDrive Files-On-Demand / sync-content 都会改写 mtime）。一次 git log 建全量映射。
+  const REPO = resolve(process.cwd(), '..');
+  const gitTimes = new Map<string, { created: number; updated: number }>();
+  try {
+    // core.quotePath=false：否则 git 会把中文路径做八进制转义并加引号，startsWith 失配。
+    const out = execSync('git -c core.quotePath=false log --name-only --format=@@%ct -- knowledge_bases', {
+      cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 256 * 1024 * 1024,
+    });
+    let ct = 0;
+    for (const ln of out.split('\n')) {
+      if (ln.startsWith('@@')) { ct = parseInt(ln.slice(2), 10) * 1000; continue; }
+      const f = ln.trim();
+      if (!f.endsWith('.md') || !f.startsWith('knowledge_bases/')) continue;
+      const e = gitTimes.get(f);
+      if (e) e.created = ct;          // git log 新→旧：越往后越老，持续覆盖 created
+      else gitTimes.set(f, { updated: ct, created: ct });  // 首见 = 最新提交 = updated
+    }
+  } catch { /* 无 git → 时间留空 */ }
+  // entry.id（content 路径，README 已转 index）→ 源文件 git 路径 knowledge_bases/<slug>/...md
+  const gitPathOf = (id: string): string | null => {
+    if (!id.startsWith('kb/')) return null;   // 外部挂载页的 git 历史不在本仓库，跳过
+    let p = 'knowledge_bases/' + id.slice(3);
+    if (p.endsWith('/index')) p = p.slice(0, -'/index'.length) + '/README.md';
+    else p += '.md';
+    return p;
+  };
+
   const entries = await getCollection('docs');
   const seen = new Set<string>();
   const paths: any[] = [];
@@ -16,16 +48,28 @@ export async function getStaticPaths() {
     // 重复 slug 跳过（同目录下 README + 其他无效配对）
     if (seen.has(slug)) continue;
     seen.add(slug);
+    const gp = gitPathOf(entry.id);
+    const t = gp ? gitTimes.get(gp) : undefined;
     paths.push({
       params: { slug: slug || undefined },
-      props: { entry },
+      props: { entry, created: t?.created || 0, updated: t?.updated || 0 },
     });
   }
   return paths;
 }
 
-const { entry } = Astro.props;
+const { entry, created, updated } = Astro.props as { entry: any; created: number; updated: number };
 const { Content } = await render(entry);
+
+// 时间戳 → YYYY-MM-DD（绝对日期；ts=0 表示无 git 记录，留空不显示）
+function fmtDate(ts: number): string {
+  if (!ts) return '';
+  const d = new Date(ts);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+const uDate = fmtDate(updated);
+const cDate = fmtDate(created);  // 同一天的两次提交按日期相等 → 只显示更新于，不重复创建于
 
 // 标题：frontmatter title → 正文首个 # 标题 → 文件名。
 // frontmatter 在 sync-content.mjs 同步时已被 stripFrontmatter 剥掉，到不了 entry.data，
@@ -79,6 +123,17 @@ const lastCrumb = parts[parts.length - 1] || '总览';
       </>
     )}
   </nav>
+  {uDate && (
+    <div class="doc-dates">
+      <span>更新于 {uDate}</span>
+      {cDate && cDate !== uDate ? (
+        <>
+          <span class="sep">·</span>
+          <span>创建于 {cDate}</span>
+        </>
+      ) : null}
+    </div>
+  )}
   <article class="article">
     <Content />
   </article>
