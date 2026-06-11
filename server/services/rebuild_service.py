@@ -43,12 +43,13 @@ def _decode(b: bytes) -> str:
     return b.decode("utf-8", "replace")
 
 
-def _recover_dist() -> None:
+def _recover_dist(include_dist_new: bool = True) -> None:
     """崩在 swap 的两次 rename 之间会让 DIST 缺失、上一份好站停在 DIST_OLD（或新构建在 DIST_NEW）。
     启动时 + 每次 swap 前自愈：DIST 不存在但有完整备份就补回，绝不让现网空着。"""
     if DIST.exists():
         return
-    for cand in (DIST_OLD, DIST_NEW):
+    candidates = (DIST_OLD, DIST_NEW) if include_dist_new else (DIST_OLD,)
+    for cand in candidates:
         if cand.exists() and (cand / "index.html").exists():
             try:
                 os.replace(cand, DIST)
@@ -111,8 +112,9 @@ def _swap() -> None:
     1) 校验新构建有 index.html；2) dist -> dist_old 备份（带锁重试）；
     3) dist_new -> dist，失败则把备份移回去；4) 清理备份。window 仅一次 rename（毫秒级）。
     """
-    # 先自愈：万一上次崩在两次 rename 之间(DIST 缺失)，这里把好副本补回，再走正常 swap。
-    _recover_dist()
+    # 先自愈：万一上次崩在两次 rename 之间(DIST 缺失)，这里只从 dist_old 补回。
+    # 此时 dist_new 是本次刚构建出的候选产物，不能提前搬走，否则后续校验会误判缺 index.html。
+    _recover_dist(include_dist_new=False)
 
     # 完整性校验：缺 index.html(或空)/缺 docs/js（前端脚本 + PDF 阅读器全在 docs/ 下）就是坏构建
     # （多因 OneDrive 锁住 web/public/docs 导致 sync 漏拷）→ 拒绝换入，保住现网，绝不拿坏构建顶替好站。
