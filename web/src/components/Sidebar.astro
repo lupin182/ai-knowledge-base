@@ -212,40 +212,59 @@ function kbNavOf(s: string): Node[] {
   return kbSidebars[s] ? extractKbNav(kbSidebars[s]) : buildExtTree('kb/' + s);
 }
 
-// 自动补全外部新卡：KB 的 _sidebar.md 手列了一批外部条目（带 ⚠️ 标注/排序），但新建的
-// 外部卡（如又加一个 per-dataset/NN-xxx.md）不会自动出现。这里把「已列外部条目所在目录」
-// 下、_sidebar.md 还没列的同级页补成一组（用其 # 标题）。只补已 curate 目录的新同级文件
-// （curatedDir 路径段≥2，避免把整棵外部树灌进来），既保留精排条目又让新卡自动现身。
-function missingExtNodes(navNodes: Node[]): Node[] {
-  const present = new Set<string>();
-  const curatedDirs = new Set<string>();
+// 自动补全外部新卡（就地注入到对应分组）：KB 的 _sidebar.md 手列了一批外部条目
+// （带 ⚠️ 标注/排序），但新建的外部卡（如又加一个 per-dataset/NN-xxx.md）不会自动出现。
+// 这里找到「直接子项链入某外部目录」的节点，把该目录下还没列出的同级卡按文件名顺序
+// 接到该节点末尾——直接进「数据集深度笔记」这种已有分组，而不是另起一个分组。
+// 只认路径段≥2 的外部目录（避免把整棵外部树灌进来）；用 # 标题当名字。
+function injectMissingExtCards(navNodes: Node[]): void {
   const norm = (h: string) => h.split('#')[0].replace(/\/+$/, '');
+  // 全树已存在的外部 href（去重，防止同一张卡被注入多次 / 与手列条目重复）。
+  const present = new Set<string>();
+  const collect = (nodes: Node[]) => {
+    for (const n of nodes) {
+      if (n.href && !n.href.startsWith('http')) present.add(norm(n.href));
+      if (n.children) collect(n.children);
+    }
+  };
+  collect(navNodes);
+  // 某外部目录下、还没出现过的同级卡（按 href 排序，数字前缀即保序）。
+  const missingInDir = (dir: string): Node[] => {
+    const out: Node[] = [];
+    for (const e of allDocs) {
+      if (e.id.startsWith('kb/')) continue;        // 只看外部挂载
+      const href = norm(extHref(e.id));
+      if (href.slice(0, href.lastIndexOf('/')) === dir && !present.has(href)) {
+        out.push({ label: entryTitle(e.id), href: extHref(e.id) });
+      }
+    }
+    out.sort((a, b) => ((a.href || '') < (b.href || '') ? -1 : 1));
+    return out;
+  };
   const walk = (nodes: Node[]) => {
     for (const n of nodes) {
-      if (n.href && !n.href.startsWith('http')) {
-        const h = norm(n.href);
-        present.add(h);
-        if (!h.startsWith('/kb/')) {
-          const dir = h.slice(0, h.lastIndexOf('/'));
-          if (dir.split('/').filter(Boolean).length >= 2) curatedDirs.add(dir);
+      if (!n.children || !n.children.length) continue;
+      // 该节点直接子项链入的外部目录（深度≥2）
+      const dirs = new Set<string>();
+      for (const c of n.children) {
+        if (c.href && !c.href.startsWith('http')) {
+          const h = norm(c.href);
+          if (!h.startsWith('/kb/')) {
+            const dir = h.slice(0, h.lastIndexOf('/'));
+            if (dir.split('/').filter(Boolean).length >= 2) dirs.add(dir);
+          }
         }
       }
-      if (n.children) walk(n.children);
+      for (const dir of dirs) {
+        for (const card of missingInDir(dir)) {
+          n.children.push(card);
+          present.add(norm(card.href!));           // 标记已注入，避免重复
+        }
+      }
+      walk(n.children);
     }
   };
   walk(navNodes);
-  if (!curatedDirs.size) return [];
-  const out: Node[] = [];
-  for (const e of allDocs) {
-    if (e.id.startsWith('kb/')) continue;          // 只看外部挂载
-    const href = norm(extHref(e.id));
-    const dir = href.slice(0, href.lastIndexOf('/'));
-    if (curatedDirs.has(dir) && !present.has(href)) {
-      out.push({ label: entryTitle(e.id), href: extHref(e.id) });
-    }
-  }
-  out.sort((a, b) => ((a.href || '') < (b.href || '') ? -1 : 1));
-  return out;
 }
 
 // Astro.url.pathname 对非 ASCII（中文文件名）一律 percent-encode，而 _sidebar.md 解析出的
@@ -266,10 +285,10 @@ groups.push({ title: '导航', items: [{ label: '🏠 首页', href: '/' }] });
 
 if (slug) {
   const nav = kbNavOf(slug);
+  // _sidebar.md 手列的外部目录下、还没列出的新卡 → 就地接到对应分组末尾（如「数据集深度笔记」），
+  // 不再另起「新增（自动）」分组。
+  injectMissingExtCards(nav);
   groups.push({ title: labelOf(slug), items: nav });
-  // 该 KB 在 _sidebar.md 里引用的外部目录下、还没手列的新卡 → 自动补成一组。
-  const autoExt = missingExtNodes(nav);
-  if (autoExt.length) groups.push({ title: '外部资源 · 新增（自动）', items: autoExt });
   const others = kbList.filter((k) => k.slug !== slug).map((k) => ({ label: k.label, href: k.href }));
   if (others.length) groups.push({ title: '其他知识库', items: others });
 } else if (isHome) {
