@@ -113,15 +113,18 @@ def set_state(path: str, status: str, annotations) -> dict:
     return {"status": status, "annotations": anns}
 
 
-def all_for(path: str) -> dict:
-    """侧栏标记用：{完整页面路径: {status, notes}}。合并「外部全局库」+「当前页所属 KB 库」，
-    都归一成完整路径键（kb/<slug>/<rel> 或 external-reports/...），前端按链接 href 直接查。"""
+def all_for(path: str | None = None) -> dict:
+    """侧栏标记用：{完整页面路径: {status, notes}}。合并「外部全局库」+「所有 KB 库」，
+    都归一成完整路径键（kb/<slug>/<rel> 或 external-reports/...），前端按链接 href 直接查。
+
+    早先只并「当前页所属 KB」，导致外部挂载页（不属任何 KB）拿不到任何 KB 阅读态，
+    其侧栏里的 KB 链接全无已读标记；跨库链接同理。改为合并全部 KB——数据量很小
+    （只存非 unread 条目），每库一个小 JSON，标记得以在任意页面（含外部页）保持一致。"""
     out = {}
     for k, e in _load(_EXTERNAL_STORE).items():
         if isinstance(e, dict):
             out[k] = {"status": e.get("status", "unread"), "notes": len(e.get("annotations") or [])}
-    slug, _rel = _split(path)
-    if slug:
+    for slug in kb_service.list_slugs():
         kb_store = kb_service.kb_dir(slug) / ".kb" / "reading-state.json"
         for k, e in _load(kb_store).items():
             if not isinstance(e, dict):

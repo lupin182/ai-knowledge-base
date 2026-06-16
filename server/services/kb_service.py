@@ -211,6 +211,16 @@ def list_knowledge_bases() -> list[dict[str, Any]]:
     return items
 
 
+def list_slugs() -> list[str]:
+    """所有 KB 的 slug（轻量：只列目录名，不算 stats）。"""
+    ensure_kb_root()
+    return sorted(
+        child.name
+        for child in KB_ROOT.iterdir()
+        if child.is_dir() and _SLUG_RE.fullmatch(child.name)
+    )
+
+
 def _clean_rel_path(raw: str) -> str:
     rel = (raw or "").strip().replace("\\", "/")
     while rel.startswith("/"):
