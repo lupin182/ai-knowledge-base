@@ -4,7 +4,10 @@
 - 外部挂载页（/external-reports/... 等，不在 kb/ 下）：存全局 `DOCS_ROOT/.reading-external.json`，
   键 = 完整路径。外部内容本就是本机 EXTERNAL_MOUNTS、不入 git，其阅读态也 gitignore。
 
-value = {"status": "unread"|"reading"|"read", "annotations": [{id,exact,prefix,suffix,note,updated}], "updated": iso}
+value = {"status": "unread"|"reading"|"read",
+         "annotations": [{id,exact,prefix,suffix,comments:[{id,text,created,updated}],updated}],
+         "updated": iso}
+一条高亮 = 一个评论线程（comments 多条）。老数据每条标注只有单个 note 字段，读/写时兼容迁移成一条评论。
 用户态、不进静态构建（前端动态读写），改它不触发重建。
 """
 import json
@@ -18,6 +21,7 @@ from server.services import kb_service
 _lock = threading.Lock()
 _NOTE_MAX = 20000
 _MAX_ANNOTS = 500
+_MAX_COMMENTS = 200
 _INDEX_KEY = "(index)"
 _STATUSES = ("unread", "reading", "read")
 _EXTERNAL_STORE = DOCS_ROOT / ".reading-external.json"
@@ -78,17 +82,50 @@ def _entry_view(e: dict) -> dict:
     return {"status": e.get("status", "unread"), "annotations": e.get("annotations", []) or []}
 
 
+def _clean_comment(c) -> dict | None:
+    if not isinstance(c, dict):
+        return None
+    text = str(c.get("text", ""))[:_NOTE_MAX]
+    if not text.strip():
+        return None
+    created = str(c.get("created", ""))[:40] or _now()
+    return {
+        "id": str(c.get("id", ""))[:64],
+        "text": text,
+        "created": created,
+        "updated": str(c.get("updated", ""))[:40] or created,
+    }
+
+
 def _clean_annotations(annotations) -> list:
     out = []
     for a in (annotations or [])[:_MAX_ANNOTS]:
         if not isinstance(a, dict):
             continue
+        comments = []
+        raw = a.get("comments")
+        if isinstance(raw, list):
+            for c in raw[:_MAX_COMMENTS]:
+                cc = _clean_comment(c)
+                if cc:
+                    comments.append(cc)
+        elif str(a.get("note", "")).strip():
+            # 向后兼容：老数据每条标注只有单个 note → 迁成一条评论
+            ts = str(a.get("updated", ""))[:40] or _now()
+            comments.append({
+                "id": (str(a.get("id", "")) + "-c0")[:64],
+                "text": str(a.get("note", ""))[:_NOTE_MAX],
+                "created": ts,
+                "updated": ts,
+            })
+        if not comments:
+            continue  # 无评论 = 空高亮，丢弃
         out.append({
             "id": str(a.get("id", ""))[:64],
             "exact": str(a.get("exact", ""))[:2000],
             "prefix": str(a.get("prefix", ""))[:200],
             "suffix": str(a.get("suffix", ""))[:200],
-            "note": str(a.get("note", ""))[:_NOTE_MAX],
+            "comments": comments,
             "updated": str(a.get("updated", ""))[:40] or _now(),
         })
     return out

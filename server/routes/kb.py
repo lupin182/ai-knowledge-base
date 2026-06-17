@@ -137,7 +137,7 @@ async def get_base_prompt():
 class ReadingRequest(BaseModel):
     path: str
     status: str = "unread"          # unread | reading | read
-    annotations: list = []          # 行内笔记标注 [{id, exact, prefix, suffix, note}]
+    annotations: list = []          # 行内笔记 [{id, exact, prefix, suffix, comments:[{id,text,created,updated}]}]
 
 
 @router.get("/api/reading")

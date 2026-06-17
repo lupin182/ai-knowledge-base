@@ -64,7 +64,7 @@
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1210;
-  width: 480px;
+  width: 540px;
   max-width: 92vw;
   max-height: 84vh;
   overflow-y: auto;
@@ -101,49 +101,61 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.kb-annot-text {
-  width: 100%;
-  min-height: 140px;
-  padding: 10px 12px;
-  border: 1px solid var(--kb-border, #dcdce0);
-  border-radius: 8px;
-  background: var(--kb-surface, #fff);
-  color: inherit;
-  font-family: inherit;
-  font-size: 13.5px;
-  line-height: 1.65;
-  resize: vertical;
-  box-sizing: border-box;
+/* 评论线程：列表 + 每条（文本 / 时间 / 编辑 / 删除）+ 底部新评论输入 */
+.kb-cmt-list { margin: 4px 0 14px; max-height: 42vh; overflow-y: auto; }
+.kb-cmt-empty { color: var(--kb-fg-dim, #aab1be); font-size: 13px; text-align: center; padding: 18px 0; }
+.kb-cmt { padding: 10px 0; border-top: 1px solid var(--kb-border, #ededf1); }
+.kb-cmt:first-child { border-top: 0; }
+.kb-cmt-text {
+  font-size: 14px; line-height: 1.7; color: var(--kb-fg, #2b2f38);
+  white-space: pre-wrap; word-break: break-word;
+}
+.kb-cmt-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; }
+.kb-cmt-time { font-size: 11.5px; color: var(--kb-fg-dim, #9a9aa2); }
+.kb-cmt-acts { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.kb-cmt:hover .kb-cmt-acts { opacity: 1; }
+.kb-cmt-act {
+  border: 0; background: transparent; cursor: pointer; font: inherit; font-size: 12px;
+  padding: 2px 7px; border-radius: 5px; color: var(--kb-fg-muted, #6b6b72);
+  transition: background 0.15s, color 0.15s;
+}
+.kb-cmt-act:hover { background: var(--kb-bg-soft, rgba(0, 0, 0, 0.06)); }
+.kb-cmt-del:hover { color: #e53935; background: rgba(229, 57, 53, 0.1); }
+
+/* 内联编辑某一条 */
+.kb-cmt-editing { padding: 8px 0; }
+.kb-cmt-edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* 底部新评论输入（像评论框的发布栏） */
+.kb-cmt-new {
+  display: flex; align-items: flex-end; gap: 10px;
+  padding-top: 12px; border-top: 1px solid var(--kb-border, #ededf1);
+}
+.kb-cmt-input, .kb-cmt-edit-input {
+  flex: 1; width: 100%; min-height: 44px; padding: 9px 12px;
+  border: 1px solid var(--kb-border, #dcdce0); border-radius: 10px;
+  background: var(--kb-surface, #fff); color: inherit; font-family: inherit;
+  font-size: 13.5px; line-height: 1.6; resize: vertical; box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.kb-annot-text:focus {
-  outline: none;
-  border-color: var(--kb-accent, #3f51b5);
+.kb-cmt-edit-input { min-height: 70px; }
+.kb-cmt-input:focus, .kb-cmt-edit-input:focus {
+  outline: none; border-color: var(--kb-accent, #3f51b5);
   box-shadow: 0 0 0 3px var(--kb-accent-soft, rgba(63, 81, 181, 0.13));
 }
-.kb-annot-text::placeholder { color: var(--kb-fg-dim, #aab1be); }
-.kb-annot-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
-.kb-annot-actions button {
-  border: 1px solid var(--kb-border, #dcdce0);
-  background: transparent;
-  color: inherit;
-  padding: 6px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
+.kb-cmt-input::placeholder { color: var(--kb-fg-dim, #aab1be); }
+.kb-cmt-post, .kb-cmt-edit-save, .kb-cmt-edit-cancel {
+  border: 1px solid var(--kb-border, #dcdce0); background: transparent; color: inherit;
+  padding: 7px 18px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 13px;
+  font-weight: 500; white-space: nowrap;
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, filter 0.15s;
 }
-.kb-annot-del { color: #e53935 !important; border-color: transparent !important; }
-.kb-annot-del:hover { background: rgba(229, 57, 53, 0.1) !important; }
-.kb-annot-done {
-  background: var(--kb-accent, #3f51b5) !important;
-  border-color: transparent !important;
-  color: #fff !important;
+.kb-cmt-post, .kb-cmt-edit-save {
+  background: var(--kb-accent, #3f51b5); border-color: transparent; color: #fff;
   box-shadow: 0 1px 3px rgba(63, 81, 181, 0.3);
 }
-.kb-annot-done:hover { filter: brightness(1.08); box-shadow: 0 3px 10px rgba(63, 81, 181, 0.4); }
+.kb-cmt-post:hover, .kb-cmt-edit-save:hover { filter: brightness(1.08); box-shadow: 0 3px 10px rgba(63, 81, 181, 0.4); }
+.kb-cmt-edit-cancel:hover { background: var(--kb-bg-soft, rgba(0, 0, 0, 0.06)); }
 
 /* 未定位笔记面板 */
 .kb-orphan-panel {
@@ -169,6 +181,11 @@ html[data-mode="dark"] .kb-reading-bar { background: rgba(255, 255, 255, 0.04); 
 html[data-mode="dark"] .kb-status-seg,
 html[data-mode="dark"] .kb-status-seg button { border-color: rgba(255, 255, 255, 0.14); }
 html[data-mode="dark"] .kb-status-seg button:hover { background: rgba(255, 255, 255, 0.08); }
-html[data-mode="dark"] .kb-annot-popup { background: #23262d; border-color: rgba(255, 255, 255, 0.14); box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5); }
-html[data-mode="dark"] .kb-annot-text { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.14); }
+html[data-mode="dark"] .kb-annot-popup { background: #23262d; border-color: rgba(255, 255, 255, 0.14); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); }
 html[data-mode="dark"] .kb-annot-sel { color: #9aa0aa; }
+html[data-mode="dark"] .kb-cmt-input,
+html[data-mode="dark"] .kb-cmt-edit-input { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.14); }
+html[data-mode="dark"] .kb-cmt { border-color: rgba(255, 255, 255, 0.09); }
+html[data-mode="dark"] .kb-cmt-new { border-color: rgba(255, 255, 255, 0.12); }
+html[data-mode="dark"] .kb-cmt-text { color: #d8dae0; }
+html[data-mode="dark"] .kb-cmt-act:hover { background: rgba(255, 255, 255, 0.08); }
