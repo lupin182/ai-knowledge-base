@@ -159,8 +159,8 @@
     popup.querySelector(".kb-annot-text").value = ann.note || "";
     var rect = (anchor || document.body).getBoundingClientRect();
     popup.hidden = false;
-    popup.style.top = (window.scrollY + rect.bottom + 6) + "px";
-    popup.style.left = (window.scrollX + Math.max(8, Math.min(rect.left, window.innerWidth - 320))) + "px";
+    popup.style.top = (window.scrollY + rect.bottom + 8) + "px";
+    popup.style.left = (window.scrollX + Math.max(8, Math.min(rect.left, window.innerWidth - 372))) + "px";
     popup.querySelector(".kb-annot-text").focus();
   }
   function closePopup() {
