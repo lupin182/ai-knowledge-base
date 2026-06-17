@@ -88,11 +88,12 @@
        In embed mode the slot stays empty and the parent window owns the sidebar. ===== -->
   <div id="ai-sidebar-slot"></div>
 
-  <!-- ===== Embed-mode floating "Ask AI" button (talks to parent) ===== -->
-  <button id="pdf-embed-ask-btn" class="pdf-embed-ask-btn" style="display:none">Ask AI</button>
-
-  <!-- 选中文字 → 写评论（embed + standalone 两种模式都有） -->
-  <button id="pdf-note-btn" class="pdf-embed-ask-btn pdf-note-btn" style="display:none">✎ 笔记</button>
+  <!-- ===== 选区工具条（嵌入模式）：问 AI + ✎ 笔记 合一，避免两个浮动按钮互相打架。
+       独立模式下 AI 由 ai-sidebar 的 #ai-float-bar 提供，「笔记」按钮会注入那个条，本条不显示。 ===== -->
+  <div id="pdf-sel-bar" class="pdf-sel-bar" style="display:none">
+    <button type="button" id="pdf-ask-btn" class="pdf-sel-btn">问 AI</button>
+    <button type="button" id="pdf-note-btn" class="pdf-sel-btn pdf-note-btn">✎ 笔记</button>
+  </div>
 
   <!-- ===== Scripts =====
        Standalone mode: bootstrapAiSidebar handles markup + all deps
@@ -139,7 +140,6 @@
     const zoomOutBtn = document.getElementById("zoom-out");
     const backBtn = document.getElementById("back-btn");
     const openTabBtn = document.getElementById("open-tab-btn");
-    const embedAskBtn = document.getElementById("pdf-embed-ask-btn");
 
     titleEl.textContent = pdfTitle;
 
@@ -444,90 +444,11 @@
       }
     } catch (_) { /* cross-origin — skip */ }
 
-    // ===== AI integration =====
-    // In STANDALONE mode, ai-sidebar.js runs in this window and handles its own
-    // mouseup → floating button → openSidebar flow. We don't interfere.
-    //
-    // In EMBED mode, ai-sidebar.js is NOT loaded here. We detect selection and
-    // bridge to the parent window's __aiSidebar API (same-origin, direct call).
-    if (isEmbed) {
-      let lastSelectedText = "";
-
-      function getSelText() {
-        const sel = window.getSelection();
-        return sel ? sel.toString().trim() : "";
-      }
-
-      // Position the floating button so it stays inside the iframe viewport.
-      // If selection spans multiple paragraphs and rect.bottom is near the bottom
-      // of the viewport, placing the button below the selection would push it
-      // outside body (which has overflow:hidden) and clip it. In that case we
-      // place the button above the selection instead, then clamp to viewport.
-      function placeAskBtn(rect) {
-        var viewH = window.innerHeight;
-        var viewW = window.innerWidth;
-        var btnH = embedAskBtn.offsetHeight || 32;
-        var btnW = embedAskBtn.offsetWidth || 90;
-        var margin = 6;
-
-        var top = rect.bottom + margin;
-        if (top + btnH + margin > viewH) {
-          top = rect.top - btnH - margin;
-        }
-        top = Math.max(margin, Math.min(top, viewH - btnH - margin));
-
-        var left = Math.max(0, rect.right - 70);
-        left = Math.max(margin, Math.min(left, viewW - btnW - margin));
-
-        embedAskBtn.style.top = (window.scrollY + top) + "px";
-        embedAskBtn.style.left = (window.scrollX + left) + "px";
-      }
-
-      document.addEventListener("mouseup", function () {
-        setTimeout(function () {
-          const text = getSelText();
-          if (text.length > 0) {
-            lastSelectedText = text;
-            const sel = window.getSelection();
-            const range = sel.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            // Show first so offsetWidth/offsetHeight are valid for clamping.
-            embedAskBtn.style.visibility = "hidden";
-            embedAskBtn.style.display = "block";
-            placeAskBtn(rect);
-            embedAskBtn.style.visibility = "";
-          } else {
-            embedAskBtn.style.display = "none";
-          }
-        }, 10);
-      });
-
-      document.addEventListener("mousedown", function (e) {
-        if (e.target === embedAskBtn) return;
-        embedAskBtn.style.display = "none";
-      });
-
-      function askParent(text) {
-        try {
-          if (window.parent && window.parent !== window && window.parent.__aiSidebar) {
-            // Pass PDF extract path as context override so parent AI loads full PDF text,
-            // not the outer paper card. This activates backend's PDF reading mode prompt.
-            window.parent.__aiSidebar.openWithSelection(text || "", window.__CONTEXT_PATH__ || "");
-            return true;
-          }
-        } catch (e) { /* cross-origin blocked — fall through */ }
-        return false;
-      }
-
-      embedAskBtn.addEventListener("click", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        embedAskBtn.style.display = "none";
-        if (!askParent(lastSelectedText)) {
-          alert("AI 助手未就绪：请确认父页面已加载 AI 侧边栏脚本。");
-        }
-      });
-    }
+    // ===== AI + 评论：统一选区工具条 =====
+    // 选区工具条（问 AI / ✎ 笔记）与评论标注合在下面这一段处理，避免「两个独立浮动按钮各自
+    // 监听 mouseup/mousedown、互相遮挡又互相隐藏」的老毛病。
+    // - 嵌入模式：本页自己的 #pdf-sel-bar（问 AI 桥接父页 __aiSidebar；✎ 笔记建本地标注）。
+    // - 独立模式：AI 由 ai-sidebar.js 的 #ai-float-bar 负责，这里只把「✎ 笔记」按钮注入那个条。
 
     // ===== 行内评论标注（PDF 几何锚定）=====
     // 选中文字 → 浮出「✎ 笔记」→ 记录该选区在页内的矩形（scale=1 的 PDF 点坐标，缩放无关）
@@ -535,7 +456,6 @@
     // 高亮；点高亮重开评论。PDF 是固定版式，几何锚点天然稳定，无需像正文那样靠文本重定位。
     // 存储走 /api/reading（key = PDF 的 __CONTEXT_PATH__，与外层论文卡的笔记互不干扰）。
     const annotPath = window.__CONTEXT_PATH__ || "";
-    const noteBtn = document.getElementById("pdf-note-btn");
     let annots = [];
     let annotStatus = "unread";
     let modal = null;
@@ -560,18 +480,19 @@
       }).catch(() => {});
     }
 
-    function pageElFromNode(node) {
-      let el = node && node.nodeType === 3 ? node.parentElement : node;
-      while (el && el !== document.body) {
-        if (el.classList && el.classList.contains("pdf-page")) return el;
-        el = el.parentElement;
-      }
-      return null;
-    }
     function pageScale(pageEl) {
       const tl = pageEl.querySelector(".textLayer");
       const s = tl ? parseFloat(tl.style.getPropertyValue("--scale-factor")) : NaN;
       return (s && !isNaN(s)) ? s : 1;
+    }
+    // 选区落在哪一页：用几何命中（视口坐标点落进哪个 .pdf-page 容器），比靠 DOM 祖先链稳——
+    // PDF.js 文字层结构有时让 commonAncestorContainer 跑到页容器外，旧逻辑就找不到页、按钮不弹。
+    function pageAtPoint(x, y) {
+      for (const [num, info] of renderedPages) {
+        const r = info.container.getBoundingClientRect();
+        if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return num;
+      }
+      return 0;
     }
 
     // 在某页容器内重画该页所有标注的高亮矩形（按当前缩放投影），点击重开评论线程。
@@ -603,21 +524,24 @@
       saveAnnots();
     }
 
-    // 选区 → 新标注：算出选区每个矩形相对页面的 scale=1 坐标，存页码 + 原文 + 空评论线程。
+    // 选区 → 新标注：每个矩形换算成相对页面的 scale=1 坐标，存页码 + 原文 + 空评论线程。
     function createAnnotFromSelection() {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.rangeCount) return;
-      const range = sel.getRangeAt(0);
       const exact = sel.toString().trim();
       if (!exact) return;
-      const pageEl = pageElFromNode(range.commonAncestorContainer);
-      if (!pageEl) return;  // 选区不在 PDF 文本层
-      const pageNum = parseInt(pageEl.dataset.pageNum, 10);
+      const range = sel.getRangeAt(0);
+      const crs = range.getClientRects();
+      if (!crs.length) return;
+      const f = crs[0];
+      const pageNum = pageAtPoint((f.left + f.right) / 2, (f.top + f.bottom) / 2);
+      const info = renderedPages.get(pageNum);
+      if (!info) return;  // 选区不在已渲染页内
+      const pageEl = info.container;
       const scale = pageScale(pageEl);
       const canvas = pageEl.querySelector("canvas");
       const base = (canvas || pageEl).getBoundingClientRect();
       const rects = [];
-      const crs = range.getClientRects();
       for (let i = 0; i < crs.length; i++) {
         const r = crs[i];
         if (r.width < 1 || r.height < 1) continue;
@@ -630,37 +554,77 @@
       modal.open(ann);
     }
 
-    // 选区工具按钮（✎ 笔记），跟随选区定位，限制在视口内。
-    function selectionRect() {
+    function selText() {
       const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !sel.rangeCount || !sel.toString().trim()) return null;
-      const range = sel.getRangeAt(0);
-      if (!pageElFromNode(range.commonAncestorContainer)) return null;
-      return range.getBoundingClientRect();
+      return (sel && !sel.isCollapsed && sel.rangeCount) ? sel.toString().trim() : "";
     }
-    function showNoteBtn() {
-      const r = selectionRect();
-      if (!r) { noteBtn.style.display = "none"; return; }
-      const m = 6;
-      noteBtn.style.visibility = "hidden";
-      noteBtn.style.display = "block";
-      const bw = noteBtn.offsetWidth || 72, bh = noteBtn.offsetHeight || 30;
-      let top = r.bottom + m;
-      if (top + bh + m > window.innerHeight) top = r.top - bh - m;
-      top = Math.max(m, Math.min(top, window.innerHeight - bh - m));
-      const left = Math.max(m, Math.min(r.left, window.innerWidth - bw - m));
-      noteBtn.style.top = (window.scrollY + top) + "px";
-      noteBtn.style.left = (window.scrollX + left) + "px";
-      noteBtn.style.visibility = "";
+
+    // ===== 选区工具条 =====
+    if (isEmbed) {
+      // 嵌入模式：本页自己的 #pdf-sel-bar（问 AI + ✎ 笔记 合一）。一个 show/hide、一套定位，
+      // 两个按钮总是一起出现，不再各自监听、互相遮挡又互相隐藏。
+      const selBar = document.getElementById("pdf-sel-bar");
+      const askBtn = document.getElementById("pdf-ask-btn");
+      const noteBtn = document.getElementById("pdf-note-btn");
+      let lastSel = "";
+      function showSelBar() {
+        const t = selText();
+        if (!t) { selBar.style.display = "none"; return; }
+        lastSel = t;
+        const rect = window.getSelection().getRangeAt(0).getBoundingClientRect();
+        selBar.style.visibility = "hidden";
+        selBar.style.display = "flex";
+        const bw = selBar.offsetWidth || 150, bh = selBar.offsetHeight || 34, m = 6;
+        let top = rect.bottom + m;
+        if (top + bh + m > window.innerHeight) top = rect.top - bh - m;
+        top = Math.max(m, Math.min(top, window.innerHeight - bh - m));
+        const left = Math.max(m, Math.min(rect.left, window.innerWidth - bw - m));
+        selBar.style.top = (window.scrollY + top) + "px";
+        selBar.style.left = (window.scrollX + left) + "px";
+        selBar.style.visibility = "";
+      }
+      document.addEventListener("mouseup", function () { setTimeout(showSelBar, 12); });
+      document.addEventListener("mousedown", function (e) { if (!selBar.contains(e.target)) selBar.style.display = "none"; });
+      selBar.addEventListener("mousedown", function (e) { e.preventDefault(); });  // 别让 mousedown 清掉选区
+      askBtn.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        selBar.style.display = "none";
+        try {
+          if (window.parent && window.parent !== window && window.parent.__aiSidebar) {
+            window.parent.__aiSidebar.openWithSelection(lastSel || "", window.__CONTEXT_PATH__ || "");
+            return;
+          }
+        } catch (e2) { /* 跨域 → 落到提示 */ }
+        alert("AI 助手未就绪：请确认父页面已加载 AI 侧边栏脚本。");
+      });
+      noteBtn.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        selBar.style.display = "none";
+        createAnnotFromSelection();
+      });
+    } else {
+      // 独立模式：AI 由 ai-sidebar.js 的 #ai-float-bar 提供。把「✎ 笔记」按钮注入那个条，
+      // 共用它的出现/消失逻辑（与正文页 reading.js 一致），不另起浮动按钮，避免打架。
+      document.addEventListener("mouseup", function () {
+        setTimeout(function () {
+          const fb = document.getElementById("ai-float-bar");
+          if (!fb) return;
+          let nb = fb.querySelector("#pdf-note-action");
+          if (!nb) {
+            nb = document.createElement("button");
+            nb.id = "pdf-note-action"; nb.type = "button"; nb.className = "ai-float-action"; nb.textContent = "✎ 笔记";
+            nb.addEventListener("mousedown", function (e) { e.preventDefault(); });
+            nb.addEventListener("click", function (e) {
+              e.preventDefault(); e.stopPropagation();
+              fb.style.display = "none";
+              createAnnotFromSelection();
+            });
+            fb.appendChild(nb);
+          }
+          nb.style.display = selText() ? "" : "none";
+        }, 14);  // 比 ai-sidebar 的 10ms 晚一点，确保浮条已出现
+      });
     }
-    document.addEventListener("mouseup", function () { setTimeout(showNoteBtn, 12); });
-    document.addEventListener("mousedown", function (e) { if (e.target !== noteBtn) noteBtn.style.display = "none"; });
-    noteBtn.addEventListener("mousedown", function (e) { e.preventDefault(); });  // 别让 mousedown 清掉选区
-    noteBtn.addEventListener("click", function (e) {
-      e.preventDefault(); e.stopPropagation();
-      noteBtn.style.display = "none";
-      createAnnotFromSelection();
-    });
 
     // Kick off
     modal = new window.KBComments.CommentModal({
