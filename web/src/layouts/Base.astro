@@ -102,7 +102,9 @@ const {
     <script is:inline src="/docs/vendor/codemirror/dialog.min.js"></script>
     <script is:inline src="/docs/js/editor.js"></script>
 
-    {/* 每页阅读状态 + 笔记栏（仅 /kb/ 文档页注入） */}
+    {/* 每页阅读状态 + 笔记栏（仅 /kb/ 文档页注入）。comment-modal.js 须先于 reading.js，
+        提供共享的 window.KBComments.CommentModal（PDF 阅读器也用同一份）。 */}
+    <script is:inline src="/docs/js/comment-modal.js"></script>
     <script is:inline src="/docs/js/reading.js"></script>
 
     {/* 正文图片单击放大 + 固定长宽比 */}

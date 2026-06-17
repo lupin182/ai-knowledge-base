@@ -8,6 +8,7 @@ value = {"status": "unread"|"reading"|"read",
          "annotations": [{id,exact,prefix,suffix,comments:[{id,text,created,updated}],updated}],
          "updated": iso}
 一条高亮 = 一个评论线程（comments 多条）。老数据每条标注只有单个 note 字段，读/写时兼容迁移成一条评论。
+PDF 标注额外带 page（页码）+ rects（[{x,y,w,h}] scale=1 PDF 点坐标），正文标注则带 prefix/suffix。
 用户态、不进静态构建（前端动态读写），改它不触发重建。
 """
 import json
@@ -22,6 +23,7 @@ _lock = threading.Lock()
 _NOTE_MAX = 20000
 _MAX_ANNOTS = 500
 _MAX_COMMENTS = 200
+_MAX_RECTS = 64          # PDF 高亮一条选区的矩形数上限（跨行选区 = 多个矩形）
 _INDEX_KEY = "(index)"
 _STATUSES = ("unread", "reading", "read")
 _EXTERNAL_STORE = DOCS_ROOT / ".reading-external.json"
@@ -82,6 +84,27 @@ def _entry_view(e: dict) -> dict:
     return {"status": e.get("status", "unread"), "annotations": e.get("annotations", []) or []}
 
 
+def _clean_rects(rects) -> list:
+    """PDF 标注的几何锚点：每个矩形 {x,y,w,h} 为 scale=1 的 PDF 点坐标（页内、缩放无关）。
+    正文（markdown）标注没有 rects，返回空列表。"""
+    out = []
+    if not isinstance(rects, list):
+        return out
+    for r in rects[:_MAX_RECTS]:
+        if not isinstance(r, dict):
+            continue
+        try:
+            out.append({
+                "x": round(float(r.get("x", 0)), 2),
+                "y": round(float(r.get("y", 0)), 2),
+                "w": round(float(r.get("w", 0)), 2),
+                "h": round(float(r.get("h", 0)), 2),
+            })
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
 def _clean_comment(c) -> dict | None:
     if not isinstance(c, dict):
         return None
@@ -120,14 +143,23 @@ def _clean_annotations(annotations) -> list:
             })
         if not comments:
             continue  # 无评论 = 空高亮，丢弃
-        out.append({
+        ann = {
             "id": str(a.get("id", ""))[:64],
             "exact": str(a.get("exact", ""))[:2000],
             "prefix": str(a.get("prefix", ""))[:200],
             "suffix": str(a.get("suffix", ""))[:200],
             "comments": comments,
             "updated": str(a.get("updated", ""))[:40] or _now(),
-        })
+        }
+        # PDF 标注：额外存页码 + 几何矩形（正文标注没有这两项）
+        try:
+            page = int(a.get("page", 0) or 0)
+        except (TypeError, ValueError):
+            page = 0
+        if page > 0:
+            ann["page"] = page
+            ann["rects"] = _clean_rects(a.get("rects"))
+        out.append(ann)
     return out
 
 

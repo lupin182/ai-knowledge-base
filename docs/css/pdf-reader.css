@@ -272,6 +272,24 @@ html.pdf-embed body.ai-sidebar-open #pdf-viewer {
   transform: translateY(-1px);
 }
 
+/* 「✎ 笔记」按钮：复用上面的浮动按钮样式，换成琥珀色（和高亮同色，区别于蓝色 Ask AI） */
+.pdf-note-btn { background: #f59e0b; }
+.pdf-note-btn:hover { background: #d97706; }
+
+/* PDF 评论高亮：覆盖在文字上的半透明琥珀块（几何锚定，缩放时按比例重投影），点击重开评论 */
+.pdf-annot-hl {
+  position: absolute;
+  z-index: 5;                    /* 高于 textLayer，才能接住点击 */
+  background: rgba(245, 158, 11, 0.26);
+  border-bottom: 2px solid rgba(245, 158, 11, 0.85);
+  border-radius: 2px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background 0.15s;
+}
+.pdf-annot-hl:hover { background: rgba(245, 158, 11, 0.45); }
+.pdf-annot-hl.has-notes { background: rgba(245, 158, 11, 0.3); }
+
 /* ========== Mobile ========== */
 
 @media (max-width: 768px) {

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF Reader</title>
   <link rel="stylesheet" href="/docs/css/pdf-reader.css">
+  <link rel="stylesheet" href="/docs/css/reading.css"><!-- 评论模态样式 .kb-annot-popup / .kb-cmt-* -->
   <!-- Mode detection MUST run before body renders, so embed styles apply immediately -->
   <script>
     (function () {
@@ -90,6 +91,9 @@
   <!-- ===== Embed-mode floating "Ask AI" button (talks to parent) ===== -->
   <button id="pdf-embed-ask-btn" class="pdf-embed-ask-btn" style="display:none">Ask AI</button>
 
+  <!-- 选中文字 → 写评论（embed + standalone 两种模式都有） -->
+  <button id="pdf-note-btn" class="pdf-embed-ask-btn pdf-note-btn" style="display:none">✎ 笔记</button>
+
   <!-- ===== Scripts =====
        Standalone mode: bootstrapAiSidebar handles markup + all deps
        (marked, DOMPurify, katex, ai-sidebar.js) in one shot.
@@ -107,6 +111,9 @@
       document.body.appendChild(mountScript);
     }
   </script>
+
+  <!-- 共享评论模态（定义 window.KBComments.CommentModal），PDF 行内笔记复用 -->
+  <script src="/docs/js/comment-modal.js"></script>
 
   <!-- ===== PDF.js Viewer ===== -->
   <script type="module">
@@ -248,6 +255,7 @@
         info.width = viewport.width;
         info.height = viewport.height;
         info.rendered = true;
+        applyHighlights(pageNum);  // 渲染完按当前缩放重投影该页的评论高亮
       } finally {
         info.rendering = false;
       }
@@ -521,8 +529,145 @@
       });
     }
 
+    // ===== 行内评论标注（PDF 几何锚定）=====
+    // 选中文字 → 浮出「✎ 笔记」→ 记录该选区在页内的矩形（scale=1 的 PDF 点坐标，缩放无关）
+    // + 一个评论线程（复用 window.KBComments.CommentModal）。每页渲染后按当前缩放重投影矩形画
+    // 高亮；点高亮重开评论。PDF 是固定版式，几何锚点天然稳定，无需像正文那样靠文本重定位。
+    // 存储走 /api/reading（key = PDF 的 __CONTEXT_PATH__，与外层论文卡的笔记互不干扰）。
+    const annotPath = window.__CONTEXT_PATH__ || "";
+    const noteBtn = document.getElementById("pdf-note-btn");
+    let annots = [];
+    let annotStatus = "unread";
+    let modal = null;
+
+    function apiBase() { return window.__KB_API_BASE || ""; }
+    function uid() { return "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+    async function loadAnnots() {
+      if (!annotPath) return;
+      try {
+        const r = await fetch(apiBase() + "/api/reading?path=" + encodeURIComponent(annotPath), { credentials: "include" });
+        const d = await r.json();
+        annotStatus = (d && d.status) || "unread";
+        annots = ((d && d.annotations) || []).filter((a) => a && a.page);  // 只认 PDF 标注（有页码）
+      } catch (e) { /* 离线/失败 → 空 */ }
+    }
+    function saveAnnots() {
+      if (!annotPath) return;
+      fetch(apiBase() + "/api/reading", {
+        method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ path: annotPath, status: annotStatus, annotations: annots }),
+      }).catch(() => {});
+    }
+
+    function pageElFromNode(node) {
+      let el = node && node.nodeType === 3 ? node.parentElement : node;
+      while (el && el !== document.body) {
+        if (el.classList && el.classList.contains("pdf-page")) return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+    function pageScale(pageEl) {
+      const tl = pageEl.querySelector(".textLayer");
+      const s = tl ? parseFloat(tl.style.getPropertyValue("--scale-factor")) : NaN;
+      return (s && !isNaN(s)) ? s : 1;
+    }
+
+    // 在某页容器内重画该页所有标注的高亮矩形（按当前缩放投影），点击重开评论线程。
+    function applyHighlights(pageNum) {
+      const info = renderedPages.get(pageNum);
+      if (!info) return;
+      const pageEl = info.container;
+      pageEl.querySelectorAll(".pdf-annot-hl").forEach((el) => el.remove());
+      const scale = pageScale(pageEl);
+      annots.filter((a) => a.page === pageNum).forEach((ann) => {
+        const n = (ann.comments || []).length;
+        (ann.rects || []).forEach((r) => {
+          const hl = document.createElement("div");
+          hl.className = "pdf-annot-hl" + (n ? " has-notes" : "");
+          hl.style.left = (r.x * scale) + "px";
+          hl.style.top = (r.y * scale) + "px";
+          hl.style.width = (r.w * scale) + "px";
+          hl.style.height = (r.h * scale) + "px";
+          hl.title = (n ? n + " 条笔记 · " : "") + (ann.exact || "").slice(0, 60);
+          hl.addEventListener("click", function (e) { e.stopPropagation(); modal.open(ann); });
+          pageEl.appendChild(hl);
+        });
+      });
+    }
+
+    function removeAnnot(ann) {
+      annots = annots.filter((a) => a.id !== ann.id);
+      applyHighlights(ann.page);
+      saveAnnots();
+    }
+
+    // 选区 → 新标注：算出选区每个矩形相对页面的 scale=1 坐标，存页码 + 原文 + 空评论线程。
+    function createAnnotFromSelection() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+      const range = sel.getRangeAt(0);
+      const exact = sel.toString().trim();
+      if (!exact) return;
+      const pageEl = pageElFromNode(range.commonAncestorContainer);
+      if (!pageEl) return;  // 选区不在 PDF 文本层
+      const pageNum = parseInt(pageEl.dataset.pageNum, 10);
+      const scale = pageScale(pageEl);
+      const canvas = pageEl.querySelector("canvas");
+      const base = (canvas || pageEl).getBoundingClientRect();
+      const rects = [];
+      const crs = range.getClientRects();
+      for (let i = 0; i < crs.length; i++) {
+        const r = crs[i];
+        if (r.width < 1 || r.height < 1) continue;
+        rects.push({ x: (r.left - base.left) / scale, y: (r.top - base.top) / scale, w: r.width / scale, h: r.height / scale });
+      }
+      sel.removeAllRanges();
+      const ann = { id: uid(), page: pageNum, exact: exact, rects: rects, comments: [], updated: new Date().toISOString() };
+      annots.push(ann);
+      applyHighlights(pageNum);
+      modal.open(ann);
+    }
+
+    // 选区工具按钮（✎ 笔记），跟随选区定位，限制在视口内。
+    function selectionRect() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount || !sel.toString().trim()) return null;
+      const range = sel.getRangeAt(0);
+      if (!pageElFromNode(range.commonAncestorContainer)) return null;
+      return range.getBoundingClientRect();
+    }
+    function showNoteBtn() {
+      const r = selectionRect();
+      if (!r) { noteBtn.style.display = "none"; return; }
+      const m = 6;
+      noteBtn.style.visibility = "hidden";
+      noteBtn.style.display = "block";
+      const bw = noteBtn.offsetWidth || 72, bh = noteBtn.offsetHeight || 30;
+      let top = r.bottom + m;
+      if (top + bh + m > window.innerHeight) top = r.top - bh - m;
+      top = Math.max(m, Math.min(top, window.innerHeight - bh - m));
+      const left = Math.max(m, Math.min(r.left, window.innerWidth - bw - m));
+      noteBtn.style.top = (window.scrollY + top) + "px";
+      noteBtn.style.left = (window.scrollX + left) + "px";
+      noteBtn.style.visibility = "";
+    }
+    document.addEventListener("mouseup", function () { setTimeout(showNoteBtn, 12); });
+    document.addEventListener("mousedown", function (e) { if (e.target !== noteBtn) noteBtn.style.display = "none"; });
+    noteBtn.addEventListener("mousedown", function (e) { e.preventDefault(); });  // 别让 mousedown 清掉选区
+    noteBtn.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      noteBtn.style.display = "none";
+      createAnnotFromSelection();
+    });
+
     // Kick off
-    load();
+    modal = new window.KBComments.CommentModal({
+      onChange: function () { if (modal.ann) applyHighlights(modal.ann.page); saveAnnots(); },
+      onCancelEmpty: function (ann) { removeAnnot(ann); },
+    });
+    loadAnnots().then(load);
   </script>
 </body>
 </html>
