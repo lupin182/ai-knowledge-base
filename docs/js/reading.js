@@ -129,38 +129,49 @@
   }
   function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
 
-  // ---------- 弹框 ----------
+  // ---------- 弹框（居中模态 + 背景遮罩，像评论框）----------
+  var backdrop = null;
+  function hidePopup() {
+    if (popup) popup.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+  }
   function ensurePopup() {
     if (popup) return;
+    backdrop = document.createElement("div");
+    backdrop.className = "kb-annot-backdrop"; backdrop.hidden = true;
+    backdrop.addEventListener("click", closePopup);  // 点遮罩 = 保存并关闭
+    document.body.appendChild(backdrop);
+
     popup = document.createElement("div"); popup.className = "kb-annot-popup"; popup.hidden = true;
     popup.innerHTML =
+      '<div class="kb-annot-head"><span class="kb-annot-title">📝 笔记</span>' +
+      '<button type="button" class="kb-annot-x" title="关闭">✕</button></div>' +
       '<div class="kb-annot-sel"></div>' +
-      '<textarea class="kb-annot-text" placeholder="写笔记……（自动保存）"></textarea>' +
+      '<textarea class="kb-annot-text" placeholder="对选中段落写点笔记……（保存后在原文标出下划线，点下划线可再编辑）"></textarea>' +
       '<div class="kb-annot-actions"><button type="button" class="kb-annot-del">删除</button>' +
-      '<button type="button" class="kb-annot-done">完成</button></div>';
+      '<button type="button" class="kb-annot-done">保存</button></div>';
     document.body.appendChild(popup);
     popup.querySelector(".kb-annot-done").addEventListener("click", closePopup);
+    popup.querySelector(".kb-annot-x").addEventListener("click", closePopup);
     popup.querySelector(".kb-annot-del").addEventListener("click", function () {
       state.annotations = state.annotations.filter(function (a) { return a.id !== openId; });
       var s = article.querySelector('span.kb-annot[data-id="' + openId + '"]'); if (s) unwrap(s);
-      popup.hidden = true; openId = null; renderStatus(); save();
+      hidePopup(); openId = null; renderStatus(); save();
     });
-    document.addEventListener("click", function (e) {
-      if (popup.hidden) return;
-      var t = e.target;
-      if (!popup.contains(t) && !(t.classList && t.classList.contains("kb-annot"))) closePopup();
+    document.addEventListener("keydown", function (e) {
+      if (popup && !popup.hidden && e.key === "Escape") closePopup();
     });
   }
   function openPopup(id, anchor) {
+    void anchor;  // 居中模态，不再按选区定位
     ensurePopup();
     var ann = state.annotations.filter(function (a) { return a.id === id; })[0]; if (!ann) return;
     openId = id;
-    popup.querySelector(".kb-annot-sel").textContent = "“" + (ann.exact || "").slice(0, 50) + "”";
+    var ex = ann.exact || "";
+    popup.querySelector(".kb-annot-sel").textContent = "“" + ex.slice(0, 280) + (ex.length > 280 ? "…" : "") + "”";
     popup.querySelector(".kb-annot-text").value = ann.note || "";
-    var rect = (anchor || document.body).getBoundingClientRect();
-    popup.hidden = false;
-    popup.style.top = (window.scrollY + rect.bottom + 8) + "px";
-    popup.style.left = (window.scrollX + Math.max(8, Math.min(rect.left, window.innerWidth - 372))) + "px";
+    backdrop.hidden = false;
+    popup.hidden = false;   // 居中由 CSS（fixed + transform）负责
     popup.querySelector(".kb-annot-text").focus();
   }
   function closePopup() {
@@ -175,7 +186,7 @@
         var s = article.querySelector('span.kb-annot[data-id="' + ann.id + '"]'); if (s) unwrap(s);
       }
     }
-    popup.hidden = true; openId = null; renderStatus(); save();
+    hidePopup(); openId = null; renderStatus(); save();
   }
 
   // ---------- 选区 → 「✎ 笔记」（注入 AI 选区工具条 #ai-float-bar，和「问AI」并排）----------
