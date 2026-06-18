@@ -233,6 +233,27 @@ body.ai-sidebar-open #pdf-viewer {
   z-index: 90;
 }
 
+/* 独立阅读时常驻「问 AI」按钮（右下角 FAB）。嵌入模式由 html.pdf-embed .pdf-standalone-only 隐藏。 */
+.pdf-ai-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 95;
+  background: var(--pdf-accent);
+  color: #fff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.pdf-ai-fab:hover { background: #303F9F; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38); }
+/* 侧栏已打开时不需要这个按钮 */
+body.ai-sidebar-open .pdf-ai-fab { display: none; }
+
 /* ========== Embed Mode (iframe inside Docsify page) ========== */
 
 /* Hide controls that only make sense in standalone full-page mode */

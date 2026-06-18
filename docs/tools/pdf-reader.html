@@ -88,6 +88,10 @@
        In embed mode the slot stays empty and the parent window owns the sidebar. ===== -->
   <div id="ai-sidebar-slot"></div>
 
+  <!-- 独立阅读时的「问 AI」常驻按钮：嵌入模式由 .pdf-standalone-only 隐藏；
+       id=ai-open-btn 由 ai-sidebar.js 自动接管点击（openSidebar）。无需选中文字即可打开。 -->
+  <button id="ai-open-btn" type="button" class="pdf-ai-fab pdf-standalone-only" title="问 AI">&#128172; 问 AI</button>
+
   <!-- ===== 选区工具条（嵌入模式）：问 AI + ✎ 笔记 合一，避免两个浮动按钮互相打架。
        独立模式下 AI 由 ai-sidebar 的 #ai-float-bar 提供，「笔记」按钮会注入那个条，本条不显示。 ===== -->
   <div id="pdf-sel-bar" class="pdf-sel-bar" style="display:none">
@@ -366,7 +370,10 @@
 
     if (backBtn) {
       backBtn.addEventListener("click", () => {
-        window.location.href = "/";
+        // 优先回到上一页（同标签内多是从论文卡点进来的）；没有历史（如新标签打开）才回首页。
+        if (history.length > 1) history.back();
+        else if (document.referrer) window.location.href = document.referrer;
+        else window.location.href = "/";
       });
     }
 
@@ -389,60 +396,23 @@
       scrollRenderTimer = setTimeout(renderVisiblePages, 300);
     });
 
-    // ===== Drag-aware resize handler =====
-    // When parent page drags the AI-sidebar width, the iframe's window fires resize
-    // events continuously. Re-rendering 24 PDF pages each time is too expensive → lag.
-    // Strategy:
-    //   - 400ms debounce on resize events.
-    //   - If parent is still mid-drag when timer fires, keep polling every 150ms.
-    //   - Also listen for parent's mouseup to trigger settled-render immediately.
-    //   - Skip if viewer width didn't actually change (<5px delta).
-    let resizeTimer;
+    // ===== Auto re-fit on container resize =====
+    // 直接用 ResizeObserver 盯 #pdf-viewer 的尺寸：无论是父页「打开/关闭/拖动」AI 侧栏、还是
+    // 窗口缩放，只要可视宽度真的变了且当前是 Fit Width / Fit Page，就防抖后按新宽度重排。
+    // 比旧的「监听 window.resize + 轮询父页拖动状态」可靠——iframe 被父页布局挤窄时，
+    // window.resize 在某些情况下不触发，但 ResizeObserver 一定能观察到元素尺寸变化。
     let lastViewerWidth = 0;
-    let pendingResize = false;
-
-    function isParentResizing() {
-      try {
-        return window.parent && window.parent !== window &&
-               window.parent.document.body.classList.contains("ai-sidebar-resizing");
-      } catch (e) {
-        return false;
-      }
-    }
-
-    function performSettledResize() {
-      if (isParentResizing()) {
-        // Still dragging — keep polling
-        resizeTimer = setTimeout(performSettledResize, 150);
-        return;
-      }
-      if (Math.abs(viewer.clientWidth - lastViewerWidth) < 5) {
-        pendingResize = false;
-        return;
-      }
-      lastViewerWidth = viewer.clientWidth;
-      pendingResize = false;
-      setZoom(currentZoom);
-    }
-
-    window.addEventListener("resize", () => {
+    let refitTimer;
+    const refitObserver = new ResizeObserver(() => {
       if (currentZoom !== "page-width" && currentZoom !== "page-fit") return;
-      pendingResize = true;
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(performSettledResize, 400);
+      clearTimeout(refitTimer);
+      refitTimer = setTimeout(() => {
+        if (Math.abs(viewer.clientWidth - lastViewerWidth) < 5) return;  // 宽度没变（如只变高）→ 不重排
+        lastViewerWidth = viewer.clientWidth;
+        setZoom(currentZoom);
+      }, 200);  // 防抖：拖动/动画过程中连续触发，停下来 200ms 才真正重排
     });
-
-    // When parent finishes dragging, fire a quicker settled-render.
-    try {
-      if (window.parent && window.parent !== window) {
-        window.parent.document.addEventListener("mouseup", () => {
-          if (pendingResize && !isParentResizing()) {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(performSettledResize, 80);
-          }
-        }, true);
-      }
-    } catch (_) { /* cross-origin — skip */ }
+    refitObserver.observe(viewer);
 
     // ===== AI + 评论：统一选区工具条 =====
     // 选区工具条（问 AI / ✎ 笔记）与评论标注合在下面这一段处理，避免「两个独立浮动按钮各自
