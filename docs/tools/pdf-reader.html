@@ -71,7 +71,6 @@
 
     <div class="pdf-actions">
       <button class="pdf-btn pdf-embed-only" id="open-tab-btn" title="在新标签打开">↗ 新标签</button>
-      <button class="pdf-btn pdf-standalone-only" id="back-btn" title="Back to KB">← 返回</button>
     </div>
   </div>
 
@@ -142,7 +141,6 @@
     const nextBtn = document.getElementById("next-page");
     const zoomInBtn = document.getElementById("zoom-in");
     const zoomOutBtn = document.getElementById("zoom-out");
-    const backBtn = document.getElementById("back-btn");
     const openTabBtn = document.getElementById("open-tab-btn");
 
     titleEl.textContent = pdfTitle;
@@ -368,14 +366,6 @@
       else pageInput.value = currentPage;
     });
 
-    if (backBtn) {
-      backBtn.addEventListener("click", () => {
-        // 优先回到上一页（同标签内多是从论文卡点进来的）；没有历史（如新标签打开）才回首页。
-        if (history.length > 1) history.back();
-        else if (document.referrer) window.location.href = document.referrer;
-        else window.location.href = "/";
-      });
-    }
 
     // 在新标签打开：去掉 embed=1 即为独立阅读页（仅内嵌模式显示，由 CSS .pdf-embed-only 控制）。
     if (openTabBtn) {
