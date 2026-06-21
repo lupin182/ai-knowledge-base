@@ -1,180 +1,411 @@
-<p align="center">
-  <img src="docs/assets/ai-kb-brand.svg" alt="AI Knowledge Base" width="820" />
+[<img src="assets/readme/logo.png" align="right" width="25%" padding-right="350">]()
+
+<p align="left">
+	<img src="assets/readme/title.png" width="62%" alt="AI Knowledge Base">
 </p>
 
-<h3 align="center">一个面向 Markdown 知识库的 AI 阅读、编辑与构建工作台</h3>
+#### 一个面向 Markdown 多知识库的本地优先 AI 阅读、搜索、批注、编辑与静态发布工作台。
+
+<p align="left">
+	<a href="LICENSE"><img src="https://img.shields.io/github/license/JZ-Wu/ai-knowledge-base?style=for-the-badge&logo=opensourceinitiative&logoColor=white&color=2fbf60" alt="license"></a>
+	<img src="https://img.shields.io/github/last-commit/JZ-Wu/ai-knowledge-base?style=for-the-badge&logo=git&logoColor=white&color=2fbf60" alt="last-commit">
+	<img src="https://img.shields.io/github/languages/top/JZ-Wu/ai-knowledge-base?style=for-the-badge&color=2fbf60" alt="repo-top-language">
+	<img src="https://img.shields.io/github/languages/count/JZ-Wu/ai-knowledge-base?style=for-the-badge&color=2fbf60" alt="repo-language-count">
+</p>
+<p align="left">
+		<em>_Built with:_</em>
+</p>
+<p align="left">
+	<img src="https://img.shields.io/badge/Python-3776AB.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+	<img src="https://img.shields.io/badge/FastAPI-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+	<img src="https://img.shields.io/badge/Astro-BC52EE.svg?style=for-the-badge&logo=astro&logoColor=white" alt="Astro">
+	<img src="https://img.shields.io/badge/TypeScript-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+	<img src="https://img.shields.io/badge/Markdown-000000.svg?style=for-the-badge&logo=markdown&logoColor=white" alt="Markdown">
+	<img src="https://img.shields.io/badge/KaTeX-2364AA.svg?style=for-the-badge" alt="KaTeX">
+	<img src="https://img.shields.io/badge/PDF.js-F40F02.svg?style=for-the-badge" alt="PDF.js">
+	<img src="https://img.shields.io/badge/CodeMirror-1F2937.svg?style=for-the-badge" alt="CodeMirror">
+</p>
+<br>
+
+## 🔗 目录
+
+I. [📰 最新动态](#news)
+II. [📍 项目概览](#overview)
+III. [🕹️ 功能特性](#features)
+IV. [🗂️ 项目结构](#structure)
+V. [🚀 快速开始](#quick-start)
+VI. [📊 项目路线图](#roadmap)
+VII. [🤝 参与贡献](#contributing)
+VIII. [🎫 许可证](#license)
+IX. [🙏 致谢](#acknowledgments)
+
+---
+
+<a id="news"></a>
+
+## 📰 最新动态
+
+- **2026-06-19** 🧭 优化 PDF 阅读器导航：移除冗余的返回按钮，让阅读页操作更聚焦。
+- **2026-06-18** 📄 改进 PDF 自动适配：接入 ResizeObserver，页面缩放和容器变化后能自动重新排版。
+- **2026-06-18** 🧰 统一 PDF 选区工具条：合并“问 AI”和“笔记”入口，减少选中文本后的按钮冲突。
+- **2026-06-17** 💬 新增 PDF 行内评论线程：评论锚定到页面几何选区，刷新后仍能定位。
+- **2026-06-17** 📝 完善高亮批注模型：每条高亮支持多条 comments，笔记弹窗改为居中 modal。
+- **2026-06-17** 📚 合并全库阅读状态：外部页面也能显示所有 KB 文章的已读、在读和笔记标记。
+- **2026-06-16** 🗂️ 优化外部内容卡片：新增外部卡片会进入已有 curated 分组，不再生成孤立自动分组。
+- **2026-06-11** 🛡️ 改进静态缓存策略：HTML、CSS、JS 使用 no-cache 重新验证，避免前端更新后浏览器继续运行旧脚本。
+
+---
+
+<a id="overview"></a>
+
+## 📍 项目概览
+
+AI Knowledge Base 把 `knowledge_bases/<slug>/` 下的 Markdown、图片、PDF 和结构化资料发布成可搜索的 Astro 静态站，并由 FastAPI 在同一个端口托管前端与 API。用户可以在浏览器里阅读、搜索、标注、编辑源码，也可以让 Claude CLI 或 OpenAI 兼容 API 在受控工具边界内读取、搜索和修改知识库 Markdown。
+
+根入口是 [`run.py`](run.py)。它会按需执行前端同步和 Astro 构建，然后启动 `server.main:app`，默认监听 `127.0.0.1:8001`。
 
 <p align="center">
-  <a href="https://github.com/JZ-Wu/ai-knowledge-base/stargazers"><img src="https://img.shields.io/github/stars/JZ-Wu/ai-knowledge-base?style=flat-square&label=stars" alt="stars" /></a>
-  <a href="https://github.com/JZ-Wu/ai-knowledge-base/network/members"><img src="https://img.shields.io/github/forks/JZ-Wu/ai-knowledge-base?style=flat-square&label=forks" alt="forks" /></a>
-  <img src="https://img.shields.io/badge/license-MIT-22c55e?style=flat-square" alt="license" />
-  <img src="https://img.shields.io/badge/Python-3.10%2B-3776ab?style=flat-square" alt="Python" />
-  <img src="https://img.shields.io/badge/FastAPI-server-009688?style=flat-square" alt="FastAPI" />
-  <img src="https://img.shields.io/badge/Astro-static%20site-ff5d01?style=flat-square" alt="Astro" />
-  <img src="https://img.shields.io/badge/Claude%20CLI%20%2F%20OpenAI-compatible-6366f1?style=flat-square" alt="AI backends" />
+	<img src="assets/readme/workflow.svg" width="92%" alt="AI Knowledge Base workflow">
 </p>
 
-AI Knowledge Base 把一组本地 Markdown 文件变成可阅读、可搜索、可编辑、可被 AI 直接操作的知识库。你可以在浏览器里阅读笔记、选中文本向 AI 提问、让模型通过受控工具修改 `.md` 文件，再由本地构建流程把变更同步回静态站点。
+---
 
-## 界面预览
+<a id="features"></a>
+
+## 🕹️ 功能特性
+
+|      | 功能 | 说明 |
+| :--- | :---: | :--- |
+| 📖 | **Markdown 知识库阅读** | <ul><li>每个 `knowledge_bases/<slug>/` 目录都是一个独立 KB。</li><li>Astro 将 `README.md` 归一成目录页，并把相对 Markdown 链接改写为稳定的绝对站内路径。</li><li>内置 `ai-ml-interview` 覆盖大模型、机器学习基础、强化学习、视觉、具身智能、CUDA、分布式训练、行业动态和面试手撕等主题。</li></ul> |
+| 🔎 | **静态搜索与目录导航** | <ul><li>`web/src/pages/search-index.json.ts` 在构建期生成全站搜索索引。</li><li>侧栏、面包屑、TOC 和最近更新均来自内容集合与本地 git 历史。</li><li>缺少手写 `_sidebar.md` 时，后端可按 KB 目录自动构建 Markdown 侧栏。</li></ul> |
+| 🤖 | **AI 侧边栏与模型选择** | <ul><li>`/api/chat` 使用 SSE 流式输出文本、思考、工具调用、用量和会话信息。</li><li>支持 Claude CLI 和 OpenAI 兼容 Chat Completions，可在设置页维护多个模型 profile。</li><li>支持选中文本、页面全文上下文、图片输入、KB 级附加提示词和 CLI session resume。</li></ul> |
+| ✍️ | **受控文件编辑** | <ul><li>OpenAI 后端提供 `read_markdown`、`replace_markdown`、`write_markdown`、`search_markdown`、`list_markdown_files`。</li><li>Claude CLI 默认只放行 `Read/Edit/Write/Glob/Grep`，并把工作目录限制到当前 KB。</li><li>路径校验拒绝隐藏目录、上级路径、绝对路径、非 `.md` 写入和疑似密钥文件名。</li></ul> |
+| 🗃️ | **多知识库管理** | <ul><li>`/api/kbs` 支持列出、新建、重命名和删除 KB。</li><li>删除会移动到 `_trash/knowledge_bases/`，不会直接物理删除。</li><li>上传支持 Markdown、PDF、图片、CSV、TSV、JSON 等安全后缀。</li></ul> |
+| 🧾 | **PDF 阅读与批注** | <ul><li>`docs/tools/pdf-reader.html` 基于 PDF.js，支持选区问 AI、页面适配和几何锚定高亮。</li><li>阅读状态与批注保存到 `.kb/reading-state.json` 或 `.reading-external.json`，不触发静态重建。</li><li>Claude CLI 后端可把论文 PDF 按页渲染为图片，回答图表、公式和版面相关问题时按需读取。</li></ul> |
+| 🔐 | **本地优先安全边界** | <ul><li>未设置访问密码时只允许本机访问；远程请求会被拒绝。</li><li>访问密码使用 stdlib scrypt 哈希存储，cookie 使用 HMAC token。</li><li>中间件拦截 `/server/`、`/.git/`、`/knowledge_bases/`、`/_trash/` 等内部路径，并对登录和聊天做速率限制。</li></ul> |
+| ⚙️ | **按需构建与原子换入** | <ul><li>`run.py` 首启或源内容更新时自动 `npm install`、同步内容并构建 Astro。</li><li>`rebuild_service` 构建到临时目录，再原子替换 dist，避免服务半成品页面。</li><li>构建产物默认放在同盘 `.kb-build/<repo-hash>/dist`，避开 OneDrive 占用。</li></ul> |
 
 <p align="center">
-  <img src="docs/assets/preview1.png" alt="AI Knowledge Base 首页预览" width="92%" />
+	<img src="assets/readme/preview1.png" width="88%" alt="AI Knowledge Base preview 1">
 </p>
-
 <p align="center">
-  <img src="docs/assets/preview2.png" alt="AI Knowledge Base 设置与知识库管理预览" width="78%" />
+	<img src="assets/readme/preview2.png" width="88%" alt="AI Knowledge Base preview 2">
 </p>
 
-## 为什么需要它
+---
 
-- **Markdown 原生**：内容仍然是普通 `.md` 文件，适合 Git 管理、迁移和长期维护。
-- **AI 直接改文件**：Claude CLI 或 OpenAI 兼容 API 可以通过 Read / Edit / Write / Glob / Grep 等受控工具定位与改写笔记。
-- **阅读和编辑在同一处**：Astro 负责静态阅读体验，CodeMirror 提供源码编辑，AI 侧栏负责解释、重写、翻译和扩展内容。
-- **多知识库管理**：`knowledge_bases/<slug>/` 下的每个目录都是独立知识库，顶部可快速切换。
-- **本地优先**：设置、知识库和备份都在本机；对外部署时可加访问密码，并通过路径白名单限制工具调用范围。
+<a id="structure"></a>
 
-## 使用场景
+## 🗂️ 项目结构
 
-| 场景 | 适合怎么用 |
-| --- | --- |
-| AI / ML 学习笔记 | 按主题维护大模型、视觉、强化学习、具身智能等材料，随读随问，随问随改。 |
-| 面试知识库 | 把算法、模型原理、工程经验组织成可搜索页面，让 AI 帮你补例子、改表述、生成复习提纲。 |
-| 论文和 PDF 阅读 | 使用内置 PDF reader 选中文段提问，再把结论沉淀回 Markdown 笔记。 |
-| 团队知识沉淀 | 将项目文档、排障手册、设计记录放入独立 KB，用访问密码暴露给局域网或同事。 |
-| 内容重构与翻译 | 选中段落后让 AI 直接重写、翻译、扩写或检查公式，变更自动写回源文件。 |
+```text
+ai-knowledge-base/
+|-- README.md
+|-- LICENSE
+|-- INSTALL.md
+|-- CLAUDE.md
+|-- run.py
+|-- start_server.bat
+|-- start.sh
+|-- assets/
+|   `-- readme/
+|       |-- logo.png
+|       |-- title.png
+|       |-- workflow.svg
+|       |-- preview1.png
+|       `-- preview2.png
+|-- server/
+|   |-- main.py
+|   |-- auth.py
+|   |-- config.py
+|   |-- models.py
+|   |-- routes/
+|   |-- services/
+|   |-- backends/
+|   `-- .env.example
+|-- web/
+|   |-- package.json
+|   |-- astro.config.mjs
+|   |-- scripts/
+|   `-- src/
+|-- docs/
+|   |-- css/
+|   |-- js/
+|   |-- tools/
+|   `-- vendor/
+|-- scripts/
+|   |-- sync_core.py
+|   `-- extract_pdf.py
+`-- knowledge_bases/
+    `-- ai-ml-interview/
+        |-- README.md
+        |-- 大模型/
+        |-- 机器学习基础/
+        |-- 强化学习/
+        |-- 视觉/
+        |-- 具身智能/
+        |-- CUDA编程/
+        |-- 分布式训练/
+        |-- 行业动态/
+        `-- 面试手撕/
+```
 
-## Workflow Architecture
+### 📇 项目索引
 
-<p align="center">
-  <img src="docs/assets/workflow-architecture.svg" alt="AI Knowledge Base workflow architecture" width="94%" />
-</p>
+<details open>
+	<summary><b><code>server/</code></b></summary>
+	<blockquote>
+		<table>
+		<tr>
+			<td><b><a href="server/main.py">server/main.py</a></b></td>
+			<td>FastAPI 应用入口，注册安全中间件、API 路由和静态站点托管。</td>
+		</tr>
+		<tr>
+			<td><b><a href="server/auth.py">server/auth.py</a></b></td>
+			<td>路径防护、速率限制、访问密码、登录 cookie 和反向代理安全判定。</td>
+		</tr>
+		<tr>
+			<td><b><a href="server/services/kb_service.py">server/services/kb_service.py</a></b></td>
+			<td>KB CRUD、slug 校验、路径解析、上传保存、侧栏生成和统计。</td>
+		</tr>
+		<tr>
+			<td><b><a href="server/services/rebuild_service.py">server/services/rebuild_service.py</a></b></td>
+			<td>按需重建 Astro 静态站，使用 build-to-temp + atomic swap。</td>
+		</tr>
+		<tr>
+			<td><b><a href="server/backends/claude_cli.py">server/backends/claude_cli.py</a></b></td>
+			<td>通过 Claude CLI 调用模型，提供受限工具集、图片输入、PDF 按页视觉读取和 session resume。</td>
+		</tr>
+		<tr>
+			<td><b><a href="server/backends/openai_api.py">server/backends/openai_api.py</a></b></td>
+			<td>OpenAI 兼容 Chat Completions 后端，服务器侧执行受控 Markdown 工具。</td>
+		</tr>
+		</table>
+	</blockquote>
+</details>
 
-核心链路是：浏览器访问 FastAPI 托管的 Astro 静态站点；AI 侧栏通过 `/api/chat` 进入后端；后端根据设置选择 Claude CLI 或 OpenAI 兼容 API；模型需要改内容时只能通过受控工具操作知识库 Markdown；文件变化后触发同步和 Astro 构建，最终刷新静态页面。
+<details open>
+	<summary><b><code>web/</code></b></summary>
+	<blockquote>
+		<table>
+		<tr>
+			<td><b><a href="web/scripts/sync-content.mjs">web/scripts/sync-content.mjs</a></b></td>
+			<td>把 KB 内容同步到 Astro content collection，重写链接并镜像图片、PDF、JSON、CSV 等静态资源。</td>
+		</tr>
+		<tr>
+			<td><b><a href="web/src/pages/index.astro">web/src/pages/index.astro</a></b></td>
+			<td>首页统计、专题卡片和最近更新，数据来自内容集合与 git 历史。</td>
+		</tr>
+		<tr>
+			<td><b><a href="web/src/pages/[...slug].astro">web/src/pages/[...slug].astro</a></b></td>
+			<td>知识库文档页，渲染正文、面包屑和创建/更新时间。</td>
+		</tr>
+		<tr>
+			<td><b><a href="web/src/pages/search-index.json.ts">web/src/pages/search-index.json.ts</a></b></td>
+			<td>构建期生成搜索索引，供前端即时搜索使用。</td>
+		</tr>
+		</table>
+	</blockquote>
+</details>
 
-## 快速开始
+---
 
-```bash
-git clone https://github.com/JZ-Wu/ai-knowledge-base
+<a id="quick-start"></a>
+
+## 🚀 快速开始
+
+### ☑️ 环境要求
+
+- **Python:** 3.11+
+- **Node.js:** 18+，首次构建前端时需要 `npm`
+- **AI 后端二选一:** 已登录的 Claude CLI，或任意 OpenAI 兼容 API key
+- **推荐系统:** Windows、macOS、Linux 均可；Windows 下项目已处理控制台编码和 OneDrive 构建占用问题
+
+### ⚙️ 安装
+
+1. 克隆仓库：
+
+```powershell
+git clone https://github.com/JZ-Wu/ai-knowledge-base.git
 cd ai-knowledge-base
+```
+
+2. 安装 Python 依赖：
+
+```powershell
 pip install -r server/requirements.txt
+```
+
+3. 启动单端口服务：
+
+```powershell
 python run.py
 ```
 
 启动后访问：
 
 ```text
-http://localhost:8001
+http://localhost:8001/
 ```
 
-`run.py` 会在首次启动时自动安装/构建前端依赖，并把构建产物托管到 FastAPI 下。内容更新后会按需重建；需要强制重建时运行：
+### 🛠️ 配置
 
-```bash
+运行时设置主要通过浏览器设置页管理：
+
+```text
+http://localhost:8001/docs/tools/settings.html
+```
+
+设置会保存到 `server/.settings.json`，该文件已被 `.gitignore` 排除。可配置内容包括：
+
+```text
+backend = claude_cli | openai_api
+Claude CLI 路径与模型列表
+OpenAI 兼容 API base_url / api_key / 模型 profile
+访问密码
+默认是否带页面全文
+默认是否允许 AI 工具调用
+外部目录挂载
+```
+
+`.env` 只保留启动期常量示例：
+
+```powershell
+Copy-Item server/.env.example server/.env
+```
+
+可选项包括 `DEFAULT_KB_SLUG` 和 `EXTERNAL_MOUNTS`。API key、访问密码和模型列表不要写进 `.env`。
+
+### 🧪 使用方式
+
+常用启动参数：
+
+```powershell
+python run.py --port 8080
 python run.py --rebuild
+python run.py --no-build
+python run.py --reload
 ```
 
-> 前端基于 Astro，首次构建需要本机已安装 Node.js。日常使用不需要单独启动 Vite/Astro dev server。
+前端开发模式：
 
-## AI 后端
+```powershell
+python run.py --no-build
+cd web
+npm install
+npm run dev
+```
 
-项目支持两类后端，统一由设置页管理：
-
-- **Claude CLI**：适合已经登录 Claude Code / Claude CLI 的本地环境，不需要在项目里保存 API key。
-- **OpenAI 兼容 API**：可配置 OpenAI、DeepSeek、Qwen 或其他兼容接口的 `base_url`、`api_key`、模型 ID 和上下文窗口。
-
-设置入口：
+打开源码编辑器和 AI 侧边栏：
 
 ```text
-/docs/tools/settings.html
+Ctrl+Shift+E  打开或关闭 Markdown 源码编辑器
+Ctrl+Shift+A  打开或关闭 AI 侧边栏
+Ctrl+S        在编辑器中保存
+Esc           关闭当前面板
 ```
 
-设置会保存到 `server/.settings.json`，该文件已被 gitignore。切换后端、修改模型、开启/关闭工具调用后会即时生效。
+### 🗄️ 数据准备
 
-## 常见用法
-
-### 让 AI 在原文里补内容
-
-打开一篇 Markdown 页面，选中某段文字，打开右下角 AI 侧栏，然后输入：
+新增知识库有两种方式：
 
 ```text
-在这段后面补 3 个具体例子，并保留当前行文风格。
+1. 在设置页 / KB 管理面板中新建或上传目录。
+2. 手动创建 knowledge_bases/<slug>/README.md，然后重新构建。
 ```
 
-后端会把页面上下文、选区和工具权限发送给模型。模型定位到源 `.md` 文件后，通过 Edit / Write 工具写回磁盘，刷新页面即可看到结果。
+`slug` 必须匹配 `[A-Za-z0-9_-]{1,64}`。上传文件会限制在 KB 内部，并只允许安全后缀。删除 KB 时会移动到 `_trash/knowledge_bases/`。
 
-### 让 AI 重写、翻译或检查
+### ✅ 验证
 
-```text
-把这段改成更适合初学者阅读的版本。
-翻译成英文，保留 Markdown 表格。
-检查公式和术语是否准确，错误处直接改。
+静态语法检查：
+
+```powershell
+python -m compileall run.py server scripts
 ```
 
-写入前会生成 `.bak` 备份，便于回滚。
+同步并构建前端：
 
-### 截图和多模态输入
-
-AI 输入框支持粘贴或拖入截图。图片会保存到临时目录，并随请求传给支持图像输入的模型，适合分析报错截图、架构图或论文图表。
-
-### 源码编辑
-
-按 `Ctrl+Shift+E` 打开 CodeMirror 源码编辑器，支持 Markdown 高亮、搜索和 `Ctrl+S` 保存。适合精修格式、公式和表格。
-
-## 多知识库
-
-目录结构约定如下：
-
-```text
-knowledge_bases/
-├── ai-ml-interview/          -> /kb/ai-ml-interview/
-│   ├── 大模型/
-│   ├── 机器学习基础/
-│   └── ...
-└── research-notes/           -> /kb/research-notes/
+```powershell
+cd web
+npm run sync
+npm run build
 ```
 
-顶部 `KB` 下拉框可切换知识库。设置页支持新建、改名、删除和上传知识库目录。删除操作会移动到 `_trash/`，不会直接永久删除。
+如需只验证启动链路，可执行：
 
-项目自带的 `ai-ml-interview` 是一套 AI/ML 面试知识体系，覆盖大模型、机器学习基础、强化学习、视觉、具身智能、CUDA、分布式训练和行业动态等主题。
-
-## 项目结构
-
-```text
-ai-knowledge-base/
-├── run.py                     # 启动脚本：自动构建前端并启动 FastAPI
-├── server/
-│   ├── main.py                # FastAPI app，托管静态站点和 API
-│   ├── routes/                # /api/chat、/api/kbs、/api/settings 等路由
-│   ├── services/              # KB、设置、重建、阅读状态等服务
-│   └── backends/              # Claude CLI 和 OpenAI API 后端
-├── web/                       # Astro 前端源码
-├── docs/                      # 前端公共资源、AI 侧栏、编辑器、PDF reader
-└── knowledge_bases/<slug>/    # Markdown 知识库内容
+```powershell
+python run.py --no-build
 ```
 
-更详细的部署、安全和外部目录挂载说明见 [INSTALL.md](INSTALL.md)。
+---
 
-## 快捷键
+<a id="roadmap"></a>
 
-| 快捷键 | 功能 |
-| --- | --- |
-| `Ctrl+Shift+A` | 打开 / 关闭 AI 侧栏 |
-| `Ctrl+Shift+E` | 打开 / 关闭源码编辑器 |
-| `Ctrl+S` | 在编辑器中保存 |
-| `Ctrl+F` | 在编辑器中搜索 |
-| `Esc` | 关闭当前面板 |
+## 📊 项目路线图
 
-## 安全边界
+- [x] **`多知识库基础结构`**: 使用 `knowledge_bases/<slug>/` 管理独立 KB，并提供创建、重命名、删除、上传和统计接口。
+- [x] **`Astro 静态站构建`**: 同步 Markdown 内容、镜像资源、重写链接、生成搜索索引和目录式路由。
+- [x] **`AI 阅读与编辑`**: 支持 Claude CLI 与 OpenAI 兼容 API，提供受限工具调用和页面上下文注入。
+- [x] **`PDF 阅读与批注`**: 集成 PDF.js、选区问 AI、行内评论线程和阅读状态持久化。
+- [x] **`安全边界`**: 本机免密、远程需密码、scrypt 哈希、路径拦截、速率限制和 full-access 联锁降级。
+- [ ] **`自动化测试覆盖`**: 扩展后端路由、路径安全、同步构建、PDF 批注和前端交互的回归测试。
+- [ ] **`性能基准`**: 记录大 KB、外部挂载、大量图片/PDF 和不同构建环境下的同步与构建耗时。
+- [ ] **`文档素材`**: 增补更多真实使用截图、部署示例、反向代理模板和自定义 KB 教程。
 
-- 对外访问前请在设置页配置访问密码。
-- 不要把 `server/.settings.json`、`server/.auth_secret`、知识库备份或密钥文件提交到 Git。
-- 反向代理时不要暴露 `/server/`、`/knowledge_bases/`、`/_trash/`、`/_backup/`、`/.git/` 等内部路径。
-- 工具调用受路径白名单限制：默认只允许操作知识库内的 Markdown 文件，并拒绝明显包含 secret、key、token、credential、password 等敏感命名的路径。
+---
 
-## 技术栈
+<a id="contributing"></a>
 
-Astro · FastAPI · Claude CLI / OpenAI Compatible API · CodeMirror 5 · KaTeX · PDF.js · Python stdlib scrypt
+## 🤝 参与贡献
 
-## License
+- **讨论:** 欢迎围绕 Markdown 知识库工作流、AI 编辑边界、PDF 阅读和本地部署体验提出建议。
+- **问题反馈:** 请附带最小复现步骤、启动命令、浏览器路径、后端日志摘要和必要截图。
+- **合并请求:** 建议在 PR 中说明改动动机、涉及文件、验证命令和对知识库内容或构建产物的影响。
 
-MIT
+<details closed>
+<summary>贡献指南</summary>
+
+1. Fork 仓库。
+2. 克隆到本地：
+   ```powershell
+   git clone https://github.com/JZ-Wu/ai-knowledge-base.git
+   ```
+3. 创建分支：
+   ```powershell
+   git checkout -b feature/your-change
+   ```
+4. 保持改动聚焦；框架共享代码请先阅读 [`CLAUDE.md`](CLAUDE.md) 中关于 `kb-core` 同步的说明。
+5. 运行至少一组检查：
+   ```powershell
+   python -m compileall run.py server scripts
+   cd web
+   npm run build
+   ```
+6. 提交并推送：
+   ```powershell
+   git commit -m "feat: describe your change"
+   git push origin feature/your-change
+   ```
+7. 创建 Pull Request，并说明验证结果。
+
+</details>
+
+---
+
+<a id="license"></a>
+
+## 🎫 许可证
+
+本项目采用 [MIT 许可证](LICENSE) 开源。
+
+---
+
+<a id="acknowledgments"></a>
+
+## 🙏 致谢
+
+- FastAPI、Uvicorn、Astro、MDX、KaTeX、PDF.js、CodeMirror 和 Marked 支撑了本项目的阅读、构建、编辑与渲染链路。
+- Claude CLI 与 OpenAI 兼容 Chat Completions 为知识库问答、改写和工具调用提供后端能力。
+
+---
