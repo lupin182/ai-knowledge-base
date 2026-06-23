@@ -2,7 +2,7 @@
 
 # 欢迎使用 **AI Knowledge Base**！
 
-[![GitHub stars](https://img.shields.io/github/stars/JZ-Wu/ai-knowledge-base.svg?style=social&label=Star)](https://github.com/JZ-Wu/ai-knowledge-base) [![GitHub watchers](https://img.shields.io/github/watchers/JZ-Wu/ai-knowledge-base.svg?style=social&label=Watch)](https://github.com/JZ-Wu/ai-knowledge-base) [![License](https://img.shields.io/github/license/JZ-Wu/ai-knowledge-base?style=flat-square&color=2fbf60)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/JZ-Wu/ai-knowledge-base?style=flat-square&color=2fbf60)](https://github.com/JZ-Wu/ai-knowledge-base/commits)
+[![GitHub stars](https://img.shields.io/github/stars/JZ-Wu/ai-knowledge-base.svg?style=social&label=Star)](https://github.com/JZ-Wu/ai-knowledge-base) [![GitHub watchers](https://img.shields.io/github/watchers/JZ-Wu/ai-knowledge-base.svg?style=social&label=Watch)](https://github.com/JZ-Wu/ai-knowledge-base) [![License](https://img.shields.io/github/license/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](https://github.com/JZ-Wu/ai-knowledge-base/commits)
 
 简体中文 · [English](README.en.md)
 
