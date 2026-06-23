@@ -1,6 +1,8 @@
-<img src="assets/readme/cover.png" width="540" alt="AI Knowledge Base">
+<img src="assets/readme/cover.png" width="300" alt="AskMD">
 
-# 欢迎使用 **AI Knowledge Base**！
+# 欢迎使用 **AskMD**！
+
+> 选中即问 · AI 帮你改原文 —— 一个本地优先、AI 原生的 Markdown 知识库。
 
 [![GitHub stars](https://img.shields.io/github/stars/JZ-Wu/ai-knowledge-base.svg?style=social&label=Star)](https://github.com/JZ-Wu/ai-knowledge-base) [![GitHub watchers](https://img.shields.io/github/watchers/JZ-Wu/ai-knowledge-base.svg?style=social&label=Watch)](https://github.com/JZ-Wu/ai-knowledge-base) [![License](https://img.shields.io/github/license/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](https://github.com/JZ-Wu/ai-knowledge-base/commits)
 
@@ -10,7 +12,7 @@
 
 ## 简介
 
-**AI Knowledge Base** 把任意一个装着 Markdown、图片和 PDF 的文件夹，变成一个**可搜索、带 AI 助手**的本地知识库网站。
+**AskMD** 把任意一个装着 Markdown、图片和 PDF 的文件夹，变成一个**可搜索、带 AI 助手**的本地知识库网站。
 
 它最特别的地方是：阅读时**选中任意一段文字就能直接问 AI**，而且可以让 AI 把答案**直接写回你的源文件**——续写、改写、整理、翻译都不用再复制粘贴。一切都在本地运行，接你自己的 Claude 或 OpenAI 兼容模型，笔记不出本机。一条命令就能跑起来。
 
@@ -66,4 +68,4 @@ python run.py            # → http://localhost:8001
 
 基于 [MIT 许可证](LICENSE) 开源，欢迎提 issue 和 PR。
 
-如果 **AI Knowledge Base** 帮到了你，欢迎点一个 ⭐ Star——这是对项目最简单也最有力的支持。
+如果 **AskMD** 帮到了你，欢迎点一个 ⭐ Star——这是对项目最简单也最有力的支持。

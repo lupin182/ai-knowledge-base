@@ -1,6 +1,8 @@
-<img src="assets/readme/cover.png" width="540" alt="AI Knowledge Base">
+<img src="assets/readme/cover.png" width="300" alt="AskMD">
 
-# Welcome to **AI Knowledge Base**!
+# Welcome to **AskMD**!
+
+> Select to ask · AI edits your source — a local-first, AI-native Markdown knowledge base.
 
 [![GitHub stars](https://img.shields.io/github/stars/JZ-Wu/ai-knowledge-base.svg?style=social&label=Star)](https://github.com/JZ-Wu/ai-knowledge-base) [![GitHub watchers](https://img.shields.io/github/watchers/JZ-Wu/ai-knowledge-base.svg?style=social&label=Watch)](https://github.com/JZ-Wu/ai-knowledge-base) [![License](https://img.shields.io/github/license/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](LICENSE) [![Last commit](https://img.shields.io/github/last-commit/JZ-Wu/ai-knowledge-base?style=flat-square&color=7c3aed)](https://github.com/JZ-Wu/ai-knowledge-base/commits)
 
@@ -10,7 +12,7 @@
 
 ## Introduction
 
-**AI Knowledge Base** turns any folder of Markdown, images and PDFs into a **searchable, AI-powered** local knowledge base.
+**AskMD** turns any folder of Markdown, images and PDFs into a **searchable, AI-powered** local knowledge base.
 
 What makes it special: while reading, **select any passage to ask AI** — and let the assistant **write the answer straight back into your source file** (continue, rewrite, reorganize, translate) with no copy-paste. Everything runs locally with your own Claude or OpenAI-compatible model; your notes never leave your machine. One command and you're up.
 
@@ -66,4 +68,4 @@ Open `http://localhost:8001` and you're in. Drop Markdown into `knowledge_bases/
 
 Released under the [MIT License](LICENSE). Issues and PRs are welcome.
 
-If **AI Knowledge Base** helps you, please consider leaving a ⭐ Star — it's the simplest and most effective way to support the project.
+If **AskMD** helps you, please consider leaving a ⭐ Star — it's the simplest and most effective way to support the project.
