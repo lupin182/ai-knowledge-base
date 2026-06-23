@@ -32,11 +32,9 @@
 - ⚡ **One command** — `python run.py` builds everything and opens in your browser.
 
 <div align="center">
-<img src="assets/readme/home.png" width="86%" alt="Knowledge base home: search, topic cards, stats">
+<img src="assets/readme/home.png" width="88%" alt="AskMD home: search, topic cards, stats">
 <br><br>
-<img src="assets/readme/preview1.png" width="86%" alt="Reading with the AI side panel">
-<br><br>
-<img src="assets/readme/preview2.png" width="86%" alt="PDF reading and annotation">
+<img src="assets/readme/api-config.png" width="62%" alt="Backend / API config: Claude CLI or any OpenAI-compatible API">
 </div>
 
 * * *
