@@ -32,6 +32,8 @@
 - ⚡ **一条命令启动** —— `python run.py`，自动构建并打开浏览器即可使用。
 
 <div align="center">
+<img src="assets/readme/home.png" width="86%" alt="知识库主页：搜索、专题卡片、统计">
+<br><br>
 <img src="assets/readme/preview1.png" width="86%" alt="阅读页与 AI 侧栏">
 <br><br>
 <img src="assets/readme/preview2.png" width="86%" alt="PDF 阅读与批注">
