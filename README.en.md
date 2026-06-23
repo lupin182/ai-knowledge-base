@@ -12,9 +12,7 @@
 
 ## Introduction
 
-**AskMD** turns any folder of Markdown, images and PDFs into a **searchable, AI-powered** local knowledge base.
-
-What makes it special: while reading, **select any passage to ask AI** — and let the assistant **write the answer straight back into your source file** (continue, rewrite, reorganize, translate) with no copy-paste. Everything runs locally with your own Claude or OpenAI-compatible model; your notes never leave your machine. One command and you're up.
+**AskMD** is a locally deployed and operated knowledge base system that supports retrieval and intelligent Q&A/editing for any folder containing Markdown, image, and PDF files. During document reading, users can select any text passage and directly invoke an AI model for instant Q&A, while also choosing to have the AI write the generated results back to the original file, enabling continuation, rewriting, content organization, multilingual translation, and more—all without the need for external editing tools or copy-pasting. This project is compatible with Claude and OpenAI API interfaces, supports the use of custom model API keys, and keeps all data and sensitive information stored locally on the user's device.
 
 <div align="center">
 <img src="assets/readme/demo.gif" width="90%" alt="Select text → ask AI → AI edits the source file">
@@ -24,7 +22,7 @@ What makes it special: while reading, **select any passage to ask AI** — and l
 
 ## Features
 
-- 📚 **Multiple knowledge bases** — turn any Markdown folder into a searchable, navigable site; create, rename and upload from the UI.
+- 📚 **Multiple knowledge bases** — Build any directory structure containing Markdown files into a knowledge base with full-text search capabilities. All operations, including knowledge base creation and file uploads, can be completed through a browser-based graphical interface.
 - 🤖 **Select to ask** — highlight any passage while reading and ask AI; the answer streams into a side panel.
 - ✍️ **AI edits your files** — let AI continue, rewrite, reorganize or translate, and it **edits your Markdown source directly**.
 - 🔎 **Search & auto-navigation** — sidebar, TOC, breadcrumbs and "recent updates" are generated for you.
@@ -52,7 +50,7 @@ python run.py            # → http://localhost:8001
 
 **Requirements**: Python 3.11+ · Node.js 18+ (first build only) · one AI backend: a logged-in **Claude CLI** or any **OpenAI-compatible** API key. Works on Windows, macOS and Linux.
 
-Open `http://localhost:8001` and you're in. Drop Markdown into `knowledge_bases/<name>/` to add a knowledge base; pick your model, password and more from the in-browser settings page. See [INSTALL.md](INSTALL.md).
+Open `http://localhost:8001` and you're in. To create a new knowledge base, you can either directly create it through the browser interface and then upload the desired files, or manually manage the directory structure—simply place your Markdown files in `knowledge_bases/<name>/` and it will become a new knowledge base.
 
 ### Shortcuts
 
@@ -68,4 +66,4 @@ Open `http://localhost:8001` and you're in. Drop Markdown into `knowledge_bases/
 
 Released under the [MIT License](LICENSE). Issues and PRs are welcome.
 
-If **AskMD** helps you, please consider leaving a ⭐ Star — it's the simplest and most effective way to support the project.
+If you find **AskMD** useful, please give it a ⭐ Star to show your support for the project!!!
