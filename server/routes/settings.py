@@ -29,6 +29,7 @@ class SettingsPayload(BaseModel):
     backend: str = Field(default="claude_cli")
     access_password: str = Field(default="")
     claude_cli: dict[str, Any] = Field(default_factory=dict)
+    codex_cli: dict[str, Any] = Field(default_factory=dict)
     openai_api: dict[str, Any] = Field(default_factory=dict)
     chat_defaults: dict[str, Any] = Field(default_factory=dict)
     external_mounts: dict[str, Any] = Field(default_factory=dict)
@@ -37,8 +38,8 @@ class SettingsPayload(BaseModel):
     @classmethod
     def backend_value(cls, v: str) -> str:
         v = (v or "").strip().lower()
-        if v not in {"claude_cli", "openai_api"}:
-            raise ValueError("backend must be 'claude_cli' or 'openai_api'")
+        if v not in {"claude_cli", "codex_cli", "openai_api"}:
+            raise ValueError("backend must be 'claude_cli', 'codex_cli' or 'openai_api'")
         return v
 
     @field_validator("access_password")
@@ -60,6 +61,7 @@ async def check_settings():
         "is_configured": settings_service.is_configured(),
         "backend": settings_service.active_backend_name(),
         "claude_cli_available": bool(settings_service.public_view()["claude_cli_available"]),
+        "codex_cli_available": bool(settings_service.public_view()["codex_cli_available"]),
     }
 
 
@@ -83,8 +85,10 @@ async def update_settings(payload: SettingsPayload, request: Request):
     is_local = is_local_request(request)
     if not is_local:
         old_cli = (current.get("claude_cli") or {}).get("cli_path", "")
+        old_codex_cli = (current.get("codex_cli") or {}).get("cli_path", "")
         old_full = bool((current.get("chat_defaults") or {}).get("ai_full_access", False))
         body["claude_cli"] = {**(body.get("claude_cli") or {}), "cli_path": old_cli}
+        body["codex_cli"] = {**(body.get("codex_cli") or {}), "cli_path": old_codex_cli}
         body["chat_defaults"] = {**(body.get("chat_defaults") or {}), "ai_full_access": old_full}
         # 外部挂载是任意文件系统路径（远程改 = 能把任意目录挂出来）→ 也只允许本机改。
         body["external_mounts"] = current.get("external_mounts", {})

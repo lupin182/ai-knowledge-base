@@ -72,6 +72,14 @@
       models.push({ value: p.model, label: p.name || p.model, ctx: _ctxFor(p), provider: "claude_cli", group: "Claude CLI（订阅）" });
       providerMap[p.model] = "claude_cli";
     });
+    var cx = settings.codex_cli || {};
+    (cx.models || []).forEach(function (p) {
+      var value = p.model || p.key;
+      if (!value) return;
+      if (value === "codex-default" || p.key === "codex-default") return;
+      models.push({ value: value, label: p.name || p.model || value, ctx: _ctxFor(p), provider: "codex_cli", group: "Codex CLI（订阅）" });
+      providerMap[value] = "codex_cli";
+    });
     var oa = settings.openai_api || {};
     (oa.models || []).forEach(function (p) {
       if (!p.model || p.configured === false) return;  // 未配 key 的 API 模型不列
@@ -83,9 +91,10 @@
     window.AI_SIDEBAR_MODELS = MODELS;
     window.AI_SIDEBAR_PROVIDER = providerMap;
     // 默认模型 = 全局默认 backend 的默认项（落不到就用清单首项）
-    var defCfg = settings.backend === "openai_api" ? oa : cc;
+    var defCfg = settings.backend === "openai_api" ? oa : (settings.backend === "codex_cli" ? cx : cc);
     var dp = ((defCfg.models) || []).filter(function (p) { return p.key === defCfg.default_model_key; })[0] || (defCfg.models || [])[0];
-    DEFAULT_MODEL = (dp && dp.model && providerMap[dp.model]) ? dp.model : models[0].value;
+    var dpValue = dp && (dp.model || dp.key);
+    DEFAULT_MODEL = (dpValue && providerMap[dpValue]) ? dpValue : models[0].value;
     window.AI_SIDEBAR_DEFAULT_MODEL = DEFAULT_MODEL;
     // 思考强度默认值（显隐交给 updateThinking）
     var think = document.getElementById("ai-think");
@@ -143,7 +152,7 @@
         '<div class="ai-sidebar-input">' +
           '<div class="ai-model-row">' +
             '<select id="ai-model">' + buildOptionsHtml(defaultModel) + '</select>' +
-            '<select id="ai-think" title="思考强度：Claude 走 --effort，OpenAI 推理模型走 reasoning_effort">' +
+            '<select id="ai-think" title="思考强度：Claude 走 --effort，Codex 走 model_reasoning_effort">' +
               '<option value="">思考：关闭</option>' +
               '<option value="low">思考：低</option>' +
               '<option value="medium" selected>思考：中</option>' +

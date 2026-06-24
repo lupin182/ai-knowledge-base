@@ -37,10 +37,113 @@ def _detect_claude_cli() -> str:
     return ""
 
 
+def _detect_codex_cli() -> str:
+    """Detect the Codex CLI; return an empty string when it is not on PATH."""
+    found = shutil.which("codex")
+    if found:
+        return found
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        candidate = Path(local) / "Programs" / "OpenAI" / "Codex" / "bin" / "codex.exe"
+        if candidate.exists():
+            return str(candidate)
+    appdata = os.environ.get("APPDATA", "")
+    if appdata:
+        candidate = Path(appdata) / "npm" / "codex.cmd"
+        if candidate.exists():
+            return str(candidate)
+    return ""
+
+
+def _codex_models_cache_file() -> Path:
+    home = os.environ.get("CODEX_HOME") or str(Path.home() / ".codex")
+    return Path(home) / "models_cache.json"
+
+
+def _codex_cached_model_profiles() -> list[dict[str, Any]]:
+    """Return user-visible Codex model profiles from the local Codex models cache."""
+    path = _codex_models_cache_file()
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    models = raw.get("models")
+    if not isinstance(models, list):
+        return []
+    visible = []
+    for item in models:
+        if not isinstance(item, dict):
+            continue
+        slug = str(item.get("slug") or "").strip()
+        if not slug or item.get("visibility") == "hide":
+            continue
+        visible.append({
+            "key": slug,
+            "name": item.get("display_name") or slug,
+            "model": slug,
+            "context": item.get("context") or 200000,
+            "description": item.get("description") or "",
+            "default_reasoning_level": item.get("default_reasoning_level") or "",
+            "supported_reasoning_levels": [
+                x.get("effort")
+                for x in (item.get("supported_reasoning_levels") or [])
+                if isinstance(x, dict) and x.get("effort")
+            ],
+            "source": "codex-cache",
+            "_priority": item.get("priority", 999),
+        })
+    visible.sort(key=lambda p: (p.get("_priority", 999), p["name"]))
+    for item in visible:
+        item.pop("_priority", None)
+    return visible
+
+
+def _codex_cli_with_cached_models(s: dict[str, Any]) -> dict[str, Any]:
+    cfg = deepcopy(s.get("codex_cli") or {})
+    configured = cfg.get("models") or []
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(profile: dict[str, Any]) -> None:
+        if not isinstance(profile, dict):
+            return
+        key = str(profile.get("key") or profile.get("model") or "").strip()
+        model = str(profile.get("model") or "").strip()
+        identity = key or model
+        if not identity or identity in seen:
+            return
+        item = deepcopy(profile)
+        item["key"] = key or model
+        item.setdefault("name", item["key"])
+        item.setdefault("model", model)
+        item.setdefault("context", 200000)
+        merged.append(item)
+        seen.add(identity)
+
+    default_profile = {
+        "key": "codex-default",
+        "name": "Codex default",
+        "model": "",
+        "context": 200000,
+        "description": "Use the default model from the user's Codex config.",
+        "source": "config",
+    }
+    add(default_profile)
+    for profile in configured:
+        add(profile)
+    for profile in _codex_cached_model_profiles():
+        add(profile)
+    cfg["models"] = merged
+    if not cfg.get("default_model_key") or not any(p.get("key") == cfg.get("default_model_key") for p in merged):
+        cfg["default_model_key"] = "codex-default"
+    return cfg
+
+
 def _default_settings() -> dict[str, Any]:
     detected = _detect_claude_cli()
+    detected_codex = _detect_codex_cli()
     return {
-        "backend": "claude_cli" if detected else "openai_api",
+        "backend": "claude_cli" if detected else ("codex_cli" if detected_codex else "openai_api"),
         "access_password": "",
         "claude_cli": {
             "cli_path": detected,  # 空字符串 = 每次调用前重新探测
@@ -51,6 +154,14 @@ def _default_settings() -> dict[str, Any]:
                 {"key": "haiku-4-5",  "name": "Claude Haiku 4.5",  "model": "claude-haiku-4-5-20251001"},
             ],
             "default_model_key": "opus-4-8",
+            "enable_tools": True,
+        },
+        "codex_cli": {
+            "cli_path": detected_codex,
+            "models": [
+                {"key": "codex-default", "name": "Codex default", "model": "", "context": 200000},
+            ],
+            "default_model_key": "codex-default",
             "enable_tools": True,
         },
         "openai_api": {
@@ -186,6 +297,10 @@ def is_configured() -> bool:
         if s["claude_cli"].get("cli_path"):
             return True
         return bool(_detect_claude_cli())
+    if s["backend"] == "codex_cli":
+        if s.get("codex_cli", {}).get("cli_path"):
+            return True
+        return bool(_detect_codex_cli())
     profiles = s["openai_api"].get("models") or []
     return any((p.get("api_key") or "").strip() for p in profiles)
 
@@ -197,6 +312,20 @@ def claude_cli_path() -> str:
     if explicit:
         return explicit
     return _detect_claude_cli() or "claude"
+
+
+def codex_cli_path() -> str:
+    """Return the configured Codex CLI path, falling back to PATH detection."""
+    cfg = read().get("codex_cli", {})
+    explicit = (cfg.get("cli_path") or "").strip()
+    if explicit:
+        return explicit
+    return _detect_codex_cli() or "codex"
+
+
+def codex_cli_config() -> dict[str, Any]:
+    """Return Codex CLI config with the local Codex model cache merged in."""
+    return _codex_cli_with_cached_models(read())
 
 
 def public_view() -> dict[str, Any]:
@@ -213,9 +342,11 @@ def public_view() -> dict[str, Any]:
         "backend": s["backend"],
         "access_password_set": bool((s.get("access_password") or "").strip()),
         "claude_cli": s["claude_cli"],
+        "codex_cli": _codex_cli_with_cached_models(s),
         "openai_api": openai,
         "chat_defaults": s.get("chat_defaults", {}),
         "external_mounts": s.get("external_mounts", {}),
         "is_configured": is_configured(),
         "claude_cli_available": bool(_detect_claude_cli()),
+        "codex_cli_available": bool(_detect_codex_cli()),
     }

@@ -3,6 +3,7 @@
 把 "调用 LLM 生成回复 / 让 LLM 编辑文件" 这件事抽出协议，让两种实现可互换：
 
 - `claude_cli`：通过 Anthropic 官方 CLI 调用 Claude（用户用订阅，免 API key）。
+- `codex_cli`：通过本地 Codex CLI 调用 Codex（用户登录，免 API key）。
 - `openai_api`：直接打 OpenAI 兼容 Chat Completions（要 API key，可对接 DeepSeek 等）。
 
 挑哪个由 `settings_service.active_backend_name()` 决定。
@@ -57,7 +58,7 @@ class Backend(Protocol):
 
 def get_backend_for(name: str) -> Backend:
     """按 provider 名返回 backend 实例（统一选择器：对话按所选模型的 provider 路由，
-    不再受全局 backend 开关限制 → Claude CLI 与各 OpenAI 兼容 API 可在同一下拉里混选）。
+    不再受全局 backend 开关限制 → Claude/Codex CLI 与各 OpenAI 兼容 API 可在同一下拉里混选）。
     未知/空 → 回退到默认 backend。"""
     name = (name or "").strip()
     # 延迟 import 避免循环依赖。
@@ -67,6 +68,9 @@ def get_backend_for(name: str) -> Backend:
     if name == "claude_cli":
         from server.backends.claude_cli import ClaudeCLIBackend
         return ClaudeCLIBackend()
+    if name == "codex_cli":
+        from server.backends.codex_cli import CodexCLIBackend
+        return CodexCLIBackend()
     return get_active_backend()
 
 
@@ -77,5 +81,8 @@ def get_active_backend() -> Backend:
     if name == "openai_api":
         from server.backends.openai_api import OpenAIAPIBackend
         return OpenAIAPIBackend()
+    if name == "codex_cli":
+        from server.backends.codex_cli import CodexCLIBackend
+        return CodexCLIBackend()
     from server.backends.claude_cli import ClaudeCLIBackend
     return ClaudeCLIBackend()
