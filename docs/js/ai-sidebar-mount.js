@@ -14,7 +14,6 @@
     { value: "claude-opus-4-7",           label: "Opus 4.7",   ctx: 1000000, provider: "claude_cli", group: _CC },
     { value: "claude-sonnet-4-6",         label: "Sonnet 4.6", ctx: 200000,  provider: "claude_cli", group: _CC },
     { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5",  ctx: 200000,  provider: "claude_cli", group: _CC },
-    { value: "codex-default",             label: "Codex default", ctx: 200000, provider: "codex_cli", group: "Codex CLI（订阅）" },
   ];
   var DEFAULT_MODEL = "claude-opus-4-8";
 
@@ -77,7 +76,8 @@
     (cx.models || []).forEach(function (p) {
       var value = p.model || p.key;
       if (!value) return;
-      models.push({ value: value, label: p.name || p.model || "Codex default", ctx: _ctxFor(p), provider: "codex_cli", group: "Codex CLI（订阅）" });
+      if (value === "codex-default" || p.key === "codex-default") return;
+      models.push({ value: value, label: p.name || p.model || value, ctx: _ctxFor(p), provider: "codex_cli", group: "Codex CLI（订阅）" });
       providerMap[value] = "codex_cli";
     });
     var oa = settings.openai_api || {};
@@ -152,7 +152,7 @@
         '<div class="ai-sidebar-input">' +
           '<div class="ai-model-row">' +
             '<select id="ai-model">' + buildOptionsHtml(defaultModel) + '</select>' +
-            '<select id="ai-think" title="思考强度：Claude 走 --effort，OpenAI 推理模型走 reasoning_effort">' +
+            '<select id="ai-think" title="思考强度：Claude 走 --effort，Codex 走 model_reasoning_effort">' +
               '<option value="">思考：关闭</option>' +
               '<option value="low">思考：低</option>' +
               '<option value="medium" selected>思考：中</option>' +

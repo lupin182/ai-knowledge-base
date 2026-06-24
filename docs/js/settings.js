@@ -299,12 +299,16 @@
       : "PATH 上未找到 codex；请先安装 Codex CLI 并运行 codex login，或手动填写路径";
     codexDefaultSelect.innerHTML = "";
     (codex.models || []).forEach(function (m) {
+      if (m.key === "codex-default" || m.model === "codex-default") return;
       var opt = document.createElement("option");
       opt.value = m.key;
-      opt.textContent = (m.name || "Codex default") + " (" + (m.model || "config default") + ")";
+      opt.textContent = (m.name || m.model || m.key) + " (" + (m.model || m.key) + ")";
       codexDefaultSelect.appendChild(opt);
     });
     codexDefaultSelect.value = codex.default_model_key || "";
+    if (!codexDefaultSelect.value && codexDefaultSelect.options.length) {
+      codexDefaultSelect.value = codexDefaultSelect.options[0].value;
+    }
 
     // OpenAI
     renderProfiles();

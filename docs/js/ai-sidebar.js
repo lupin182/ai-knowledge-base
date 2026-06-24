@@ -135,7 +135,7 @@
     }
   }
 
-  // 统一选择器：思考强度下拉只在所选模型属于 Claude(claude_cli) 时显示并发送 effort。
+  // 统一选择器：思考强度下拉只在所选模型属于 Claude/Codex 时显示并发送 effort。
   // OpenAI 兼容的普通模型发 effort/reasoning 会报错，所以切到这类模型就隐藏、也不发。
   function updateThinkingForModel() {
     var pm = window.AI_SIDEBAR_PROVIDER || {};

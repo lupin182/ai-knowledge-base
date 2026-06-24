@@ -44,6 +44,13 @@ _IMG_EXT = {
 }
 _LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 _DANGEROUS_NAME_RE = re.compile(r"(secret|credential|password|token|api[_-]?key)", re.I)
+_EFFORT_MAP = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "max": "xhigh",
+    "xhigh": "xhigh",
+}
 
 
 def _looks_like_windows_sandbox_failure(text: str) -> bool:
@@ -303,16 +310,23 @@ class CodexCLIBackend:
     def list_models(self) -> list[dict[str, Any]]:
         cfg = settings_service.codex_cli_config()
         default_key = cfg.get("default_model_key", "")
+        visible = [
+            p for p in (cfg.get("models") or [])
+            if p.get("key") != "codex-default" and (p.get("model") or p.get("key")) != "codex-default"
+        ]
+        effective_default = default_key if any(p.get("key") == default_key for p in visible) else (
+            visible[0].get("key") if visible else ""
+        )
         return [
             {
                 "value": p.get("model") or p.get("key"),
                 "label": p.get("name") or p.get("model") or "Codex default",
                 "model": p.get("model") or p.get("key"),
                 "context": p.get("context", 200000),
-                "is_default": p.get("key") == default_key,
+                "is_default": p.get("key") == effective_default,
                 "configured": True,
             }
-            for p in cfg.get("models") or []
+            for p in visible
         ]
 
     def status(self) -> dict[str, Any]:
@@ -337,7 +351,7 @@ class CodexCLIBackend:
         images: list[dict[str, Any]] | None = None,
         session_id: str = "",
     ) -> Generator[dict[str, Any], None, None]:
-        del thinking, effort, session_id
+        del thinking, session_id
         kb_slug, rel_path = kb_service.split_docsify_path(page_path or "")
         kb_slug = kb_slug or ""
         cwd = _resolve_cwd(kb_slug)
@@ -376,15 +390,18 @@ class CodexCLIBackend:
         resolved_model = _resolve_model(model)
         if resolved_model:
             cmd.extend(["--model", resolved_model])
+        codex_effort = _EFFORT_MAP.get((effort or "").strip().lower(), "")
+        if codex_effort:
+            cmd.extend(["-c", f"model_reasoning_effort={json.dumps(codex_effort)}"])
         for path in img_paths:
             cmd.extend(["--image", str(path)])
         cmd.append("-")
 
         before = _markdown_snapshot(cwd) if enable_tools else {}
         logger.info(
-            "codex_cli call: kb=%s model=%s prompt=%dB images=%d cwd=%s",
+            "codex_cli call: kb=%s model=%s effort=%s prompt=%dB images=%d cwd=%s",
             kb_slug or "(none)", resolved_model or "(codex default)",
-            len(prompt.encode("utf-8")), len(img_paths), cwd,
+            codex_effort or "(default)", len(prompt.encode("utf-8")), len(img_paths), cwd,
         )
 
         try:
