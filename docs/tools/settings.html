@@ -181,6 +181,7 @@
       <label><input type="checkbox" id="chat-ai-full-access"> 放开 AI 全部权限（解锁 Bash／联网等全部工具，自动放行不再弹确认）</label>
       <p class="hint" style="color:#c0392b;margin-top:4px">⚠️ 仅在你信任、且只本机访问（127.0.0.1）的私人实例开启；对外暴露的公开实例务必保持关闭——否则外部请求能借 AI 在你机器上执行命令。</p>
       <p class="hint" style="color:#c0392b;margin-top:4px">Codex CLI 在部分 Windows 环境下会出现 sandbox helper 拒绝访问（os error 5），导致受限模式无法写入 .md；确认只在本机使用时，可开启本项让 Codex 绕过 sandbox 后再编辑。</p>
+      <p class="hint" style="color:#c0392b;margin-top:4px">如果需要通过代理使用Codex CLI: Codex CLI在启动时，需要显式读取环境变量才知道要通过代理访问网络。如果这些变量没设置好，它就会尝试直连，超时后触发重连循环，失败5次后才回退到 HTTPS 模式，导致回答延迟过大，建议为 Codex CLI显式配置代理环境变量。</p>
     </div>
   </section>
 

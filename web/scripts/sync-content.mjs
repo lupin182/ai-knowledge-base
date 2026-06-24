@@ -240,6 +240,31 @@ async function pruneOrphans(root, keep) {
   return deleted;
 }
 
+async function pruneDeletedKBs(activeSlugs) {
+  const active = new Set(activeSlugs);
+  let deleted = 0;
+
+  async function pruneRoot(root) {
+    let names;
+    try { names = await fs.readdir(root); }
+    catch { return; }
+    for (const name of names) {
+      if (name.startsWith('.')) continue;
+      if (active.has(name)) continue;
+      const full = resolve(root, name);
+      let st;
+      try { st = await fs.stat(full); } catch { continue; }
+      if (!st.isDirectory()) continue;
+      await fs.rm(full, { recursive: true, force: true });
+      deleted++;
+    }
+  }
+
+  await pruneRoot(resolve(ASTRO_CONTENT, 'kb'));
+  await pruneRoot(resolve(ASTRO_PUBLIC, 'kb'));
+  return deleted;
+}
+
 async function syncOne(srcDir, opts = {}) {
   // opts.absSrc：直接给一个绝对路径作为源（EXTERNAL_MOUNTS 用），否则相对 KB_ROOT
   // opts.dstSubDir：覆盖目标子路径（multi-KB 用 'kb/<slug>'），否则等于 srcDir
@@ -360,6 +385,10 @@ async function main() {
 
   const kbs = await discoverKBs();
   console.log(`  Found ${kbs.length} KB(s) under knowledge_bases/: ${kbs.join(', ')}`);
+  const deletedKBDirs = await pruneDeletedKBs(kbs);
+  if (deletedKBDirs) {
+    console.log(`  removed ${deletedKBDirs} stale KB cache dir(s)`);
+  }
   for (const slug of kbs) {
     process.stdout.write(`  ${slug}: `);
     const r = await syncOne(`knowledge_bases/${slug}`, { dstSubDir: `kb/${slug}` });
