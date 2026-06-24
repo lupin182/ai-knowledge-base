@@ -4,8 +4,9 @@
 
 - Python 3.11+
 - Node.js 18+ —— 前端是 Astro 静态站，`python run.py` 首次启动会自动 `npm install` + 构建（需要 npm）
-- AI 后端二选一：
+- AI 后端三选一：
   - （推荐）[Claude CLI](https://docs.anthropic.com/en/docs/claude-code)：用 Claude 订阅，无需 API Key
+  - [Codex CLI](https://developers.openai.com/codex)：用 ChatGPT/Codex 登录，无需 API Key；先运行 `codex login`，可用 `codex doctor` 检查状态
   - 或任意 OpenAI 兼容 API 的 Key（OpenAI / DeepSeek / Qwen 等）
 
 ## 安装步骤
@@ -24,7 +25,7 @@ python run.py
 
 浏览器打开 http://localhost:8001 即可。
 
-`run.py` 启动前会检查 `web/dist`：**缺失、或内容 / 前端源有更新时自动重建**（首次含 `npm install`，约 1–2 分钟），之后正常启动只是秒级的 stat 检查。想用 Claude CLI 但没装：`npm i -g @anthropic-ai/claude-code && claude` 登录一次即可。
+`run.py` 启动前会检查 `web/dist`：**缺失、或内容 / 前端源有更新时自动重建**（首次含 `npm install`，约 1–2 分钟），之后正常启动只是秒级的 stat 检查。想用 Claude CLI 但没装：`npm i -g @anthropic-ai/claude-code && claude` 登录一次即可。想用 Codex CLI：安装后运行 `codex login`，再用 `codex doctor` 确认已登录和网络可用。
 
 > 改内容、日常使用都只用上面这一条命令即可。**仅当你要改 Astro 前端代码本身、想要热更新**时，才需要单独的 dev server（`cd web && npm run dev`，端口 4321）—— 见 [web/README.md](web/README.md)。
 
@@ -39,9 +40,10 @@ python run.py --reload           # 开发模式，后端代码改动自动重启
 
 ### 首次启动流程
 
-1. 服务起来后会自动探测 `claude` 命令是否可用：
+1. 服务起来后会自动探测 `claude` / `codex` 命令是否可用：
    - 可用 → backend 默认为 `claude_cli`，**直接能用**，不用碰任何配置
-   - 不可用 → backend 默认为 `openai_api`，但 API key 为空，顶部会弹横幅
+   - `claude` 不可用但 `codex` 可用 → backend 默认为 `codex_cli`
+   - 都不可用 → backend 默认为 `openai_api`，但 API key 为空，顶部会弹横幅
 2. 点横幅或访问 `http://localhost:8001/docs/tools/settings.html` 进入设置页
 3. 选 backend、填 API key / 改默认模型、（可选）设访问密码 → 保存
 4. 回到首页即可使用
@@ -67,10 +69,11 @@ ai-knowledge-base/
 │   │   └── settings.py         # /api/settings + /api/login
 │   ├── services/
 │   │   ├── kb_service.py       # 多 KB CRUD + 路径解析 + sidebar 生成 + 上传
-│   │   └── settings_service.py # .settings.json IO + Claude CLI 自动探测
+│   │   └── settings_service.py # .settings.json IO + Claude/Codex CLI 自动探测
 │   └── backends/
 │       ├── __init__.py         # Backend 抽象 + 工厂
 │       ├── claude_cli.py       # Claude CLI 子进程实现
+│       ├── codex_cli.py        # Codex CLI 子进程实现
 │       └── openai_api.py       # OpenAI 兼容 API 实现（带服务器侧工具调用）
 ├── web/                        # Astro 前端（源码）；构建产物 web/dist 由 run.py/npm 生成
 │   ├── src/                    # 页面 / 组件 / 布局 / 内容配置
@@ -119,7 +122,7 @@ FastAPI 后端（同一端口）
 
 ### Backend 切换
 
-两个 backend 都实现同一个 Protocol（`server/backends/__init__.py`）：
+三个 backend 都实现同一个 Protocol（`server/backends/__init__.py`）：
 
 ```python
 class Backend(Protocol):
@@ -131,9 +134,13 @@ class Backend(Protocol):
     def suggest_edit(self, *, page_content, instruction, chat_context="") -> str: ...
 ```
 
-`get_active_backend()` 按 `settings_service.active_backend_name()` 返回 `ClaudeCLIBackend()` 或 `OpenAIAPIBackend()`，路由层只调 backend 接口。
+`get_active_backend()` 按 `settings_service.active_backend_name()` 返回 `ClaudeCLIBackend()`、`CodexCLIBackend()` 或 `OpenAIAPIBackend()`，路由层只调 backend 接口。
 
 `claude_cli`：工作目录切到具体 KB 根，CLI 工具白名单只放 `Read,Edit,Write,Glob,Grep`，图片上传走 `.tmp_images/` 中转。
+
+`codex_cli`：工作目录同样切到具体 KB 根，默认使用 `codex exec --json` 和用户 Codex 配置里的默认模型；设置页会从本机 `~/.codex/models_cache.json` 自动列出当前账号可见的 Codex 模型供选择。受限模式用 `read-only` / `workspace-write` sandbox；只有本机 loopback 绑定且开启 full access 时才会使用 Codex 的 bypass 模式。
+
+Windows 注意：如果 Codex CLI 在编辑时提示 `windows sandbox` / `codex-windows-sandbox-setup.exe` / `拒绝访问 (os error 5)`，说明 Codex 的受限 sandbox helper 没能启动，受限模式下无法写入文件。只在本机私有实例使用时，可在设置页“对话默认”里勾选“放开 AI 全部权限”，并确保服务绑定 `127.0.0.1` 后重试；公开部署不要开启。
 
 `openai_api`：服务器侧实现 `read_markdown / replace_markdown / write_markdown / search_markdown / list_markdown_files`，路径强制限制在 `knowledge_bases/<slug>/` 内、仅 `.md` 后缀、文件名不含 secret/key/token 等字段。
 

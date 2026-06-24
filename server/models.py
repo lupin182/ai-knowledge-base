@@ -16,7 +16,7 @@ class ChatRequest(BaseModel):
     selected_text: str = ""
     messages: list[ChatMessage]
     model: str = ""  # 空串 = 用 backend 的默认模型
-    provider: str = ""  # "claude_cli"/"openai_api"：统一选择器按所选模型的 provider 路由；空 = 默认 backend
+    provider: str = ""  # "claude_cli"/"codex_cli"/"openai_api"：统一选择器按所选模型的 provider 路由；空 = 默认 backend
     thinking: bool = False
     effort: str = ""  # ""/"default" = 不指定；"low"/"medium"/"high"（仅 OpenAI 推理模型生效，Claude CLI 忽略）
     images: list[ImageData] = []

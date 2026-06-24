@@ -140,7 +140,7 @@
   function updateThinkingForModel() {
     var pm = window.AI_SIDEBAR_PROVIDER || {};
     var prov = (modelSelect && pm[modelSelect.value]) || "";
-    var supported = prov ? (prov === "claude_cli") : true;  // 无映射(离线兜底全 Claude) → 视为支持
+    var supported = prov ? (prov === "claude_cli" || prov === "codex_cli") : true;  // 无映射(离线兜底全 Claude) → 视为支持
     window.AI_SIDEBAR_THINKING_SUPPORTED = supported;
     if (thinkSelect) thinkSelect.style.display = supported ? "" : "none";
   }

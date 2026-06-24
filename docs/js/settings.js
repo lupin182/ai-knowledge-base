@@ -7,10 +7,12 @@
   var statusPill = $("status-pill");
   var saveFeedback = $("save-feedback");
   var claudeCard = $("claude-cli-card");
+  var codexCard = $("codex-cli-card");
   var openaiCard = $("openai-card");
   var profilesEl = $("openai-profiles");
   var defaultModelSelect = $("openai-default-model");
   var claudeDefaultSelect = $("claude-default-model");
+  var codexDefaultSelect = $("codex-default-model");
 
   function setSaveFeedback(text, type) {
     saveFeedback.textContent = text || "";
@@ -289,6 +291,21 @@
     });
     claudeDefaultSelect.value = s.claude_cli.default_model_key || "";
 
+    // Codex CLI
+    var codex = s.codex_cli || { models: [] };
+    $("codex-cli-path").value = codex.cli_path || "";
+    $("codex-cli-detected").textContent = s.codex_cli_available
+      ? "✓ 已在 PATH 上探测到 codex"
+      : "PATH 上未找到 codex；请先安装 Codex CLI 并运行 codex login，或手动填写路径";
+    codexDefaultSelect.innerHTML = "";
+    (codex.models || []).forEach(function (m) {
+      var opt = document.createElement("option");
+      opt.value = m.key;
+      opt.textContent = (m.name || "Codex default") + " (" + (m.model || "config default") + ")";
+      codexDefaultSelect.appendChild(opt);
+    });
+    codexDefaultSelect.value = codex.default_model_key || "";
+
     // OpenAI
     renderProfiles();
     $("openai-allow-client-model").checked = !!s.openai_api.allow_client_model;
@@ -315,6 +332,7 @@
     var backend = document.querySelector('input[name="backend"]:checked');
     var name = backend ? backend.value : "claude_cli";
     claudeCard.classList.toggle("dim", name !== "claude_cli");
+    if (codexCard) codexCard.classList.toggle("dim", name !== "codex_cli");
     openaiCard.classList.toggle("dim", name !== "openai_api");
   }
 
@@ -407,6 +425,12 @@
         models: state.settings.claude_cli.models,
         default_model_key: claudeDefaultSelect.value,
         enable_tools: state.settings.claude_cli.enable_tools,
+      },
+      codex_cli: {
+        cli_path: $("codex-cli-path").value.trim(),
+        models: (state.settings.codex_cli && state.settings.codex_cli.models) || [],
+        default_model_key: codexDefaultSelect.value,
+        enable_tools: state.settings.codex_cli ? state.settings.codex_cli.enable_tools : true,
       },
       openai_api: {
         models: collectProfiles(),
